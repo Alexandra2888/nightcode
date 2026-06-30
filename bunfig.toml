@@ -1,0 +1,7 @@
+# Bun configuration for the nightcode monorepo.
+# https://bun.com/docs/runtime/bunfig
+
+[install]
+# Isolated linker is recommended for workspaces: it prevents phantom
+# dependencies by giving each package a strict view of its own deps.
+linker = "isolated"

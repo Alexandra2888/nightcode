@@ -1,0 +1,23 @@
+{
+  "name": "nightcode",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "bun --hot run apps/server/src/index.ts",
+    "dev:cli": "bun --watch run apps/cli/src/index.tsx",
+    "start:server": "bun run apps/server/src/index.ts",
+    "start:cli": "bun run apps/cli/src/index.tsx",
+    "build": "bun --filter '*' build",
+    "test": "bun test",
+    "typecheck": "tsc --build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "latest"
+  }
+}
