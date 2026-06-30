@@ -41,6 +41,16 @@ package is discovered automatically once its folder exists.
   in `app.tsx`, and navigate to it with `useNavigate()` bound to a key via
   `useKeyboard` (e.g. `navigate("/name")`). Go back with `navigate(-1)`.
 
+### OpenTUI gotchas (`apps/cli`)
+
+- **`<textarea>` is uncontrolled** — it owns its edit buffer. There is no
+  `value`/`onChange`. Read the text on submit via a ref:
+  `ref.current?.plainText` (type the ref as `TextareaRenderable` from
+  `@opentui/core`), NOT React `useState`. Capture submission with `onSubmit`.
+- **Enter inserts a newline by default**, not submit (only `meta+Enter` submits).
+  To make Enter submit, override `keyBindings`:
+  `[{ name: "return", action: "submit" }, { name: "return", shift: true, action: "newline" }]`.
+
 ## Commands (run from the repo root)
 
 | Command               | What it does                                     |
