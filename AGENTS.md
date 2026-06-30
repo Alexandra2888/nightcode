@@ -48,8 +48,12 @@ package is discovered automatically once its folder exists.
   `ref.current?.plainText` (type the ref as `TextareaRenderable` from
   `@opentui/core`), NOT React `useState`. Capture submission with `onSubmit`.
 - **Enter inserts a newline by default**, not submit (only `meta+Enter` submits).
-  To make Enter submit, override `keyBindings`:
+  The prompt overrides `keyBindings` to flip this — Enter submits, Shift+Enter is
+  a newline:
   `[{ name: "return", action: "submit" }, { name: "return", shift: true, action: "newline" }]`.
+  Caveat: Shift+Enter is only distinguishable from Enter in terminals with the
+  enhanced/kitty keyboard protocol (Ghostty, Kitty, WezTerm, recent iTerm2). In
+  a basic terminal both send the same bytes, so Shift+Enter will submit too.
 
 ## Commands (run from the repo root)
 
