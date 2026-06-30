@@ -1,0 +1,24 @@
+import { MemoryRouter, Routes, Route, Navigate } from "react-router";
+import { HomeScreen } from "./screens/home-screen.tsx";
+import { SettingsScreen } from "./screens/settings-screen.tsx";
+import { AboutScreen } from "./screens/about-screen.tsx";
+
+/**
+ * Root router shell. We use `MemoryRouter` (in-memory history) because a TUI has
+ * no DOM or URL bar — `BrowserRouter`/`<Link>` and other DOM-only APIs don't
+ * apply here. Navigation is keyboard-driven via `useNavigate` inside screens.
+ *
+ * To add a screen: create `screens/<name>-screen.tsx`, then add a <Route> below.
+ */
+export function App() {
+  return (
+    <MemoryRouter>
+      <Routes>
+        <Route path="/" element={<HomeScreen />} />
+        <Route path="/settings" element={<SettingsScreen />} />
+        <Route path="/about" element={<AboutScreen />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}

@@ -23,13 +23,23 @@ package is discovered automatically once its folder exists.
 - **File names are kebab-case** (`home-screen.tsx`, `prompt-input.tsx`). The
   React/exported identifier inside stays PascalCase (`HomeScreen`,
   `PromptInput`) — JSX requires a capitalized component name.
-- **Keep `src/` uncluttered**: only the entry point (e.g. `index.tsx`) lives at
-  the top level. Components and screens never sit loose in `src/` — they go in
-  their own folders.
+- **Keep `src/` uncluttered**: the only top-level files are the entry point
+  (`index.tsx`, renderer bootstrap) and the router shell (`app.tsx`). Components
+  and screens never sit loose in `src/` — they go in their own folders.
 - **Screens are separate from components.** Full-screen views live in
   `screens/`; reusable building blocks live in `components/`. Don't mix them.
 - New apps follow the same shape: an entry point plus `screens/` and
   `components/` folders.
+
+### CLI routing (`apps/cli`)
+
+- Routing uses **`react-router`** (the DOM-free core package) with
+  **`MemoryRouter`** — a TUI has no DOM or URL bar, so `BrowserRouter`, `<Link>`,
+  `<NavLink>`, and `Form` do NOT apply. Routes are declared declaratively in
+  `app.tsx`.
+- **Add a screen**: create `screens/<name>-screen.tsx`, add a `<Route path=…>`
+  in `app.tsx`, and navigate to it with `useNavigate()` bound to a key via
+  `useKeyboard` (e.g. `navigate("/name")`). Go back with `navigate(-1)`.
 
 ## Commands (run from the repo root)
 

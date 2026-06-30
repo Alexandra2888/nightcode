@@ -1,11 +1,20 @@
-import { TextAttributes } from "@opentui/core";
+import { useRef } from "react";
+import type { TextareaRenderable } from "@opentui/core";
+
+type PromptInputProps = {
+  /** Called with the textarea's plain text when the user submits (Enter). */
+  onSubmit?: (value: string) => void;
+};
 
 /**
- * The home-screen prompt box: a bordered, focused text area with a placeholder
- * and a key hint, mirroring the input on Claude Code / Codex / OpenCode home
- * screens. The textarea is uncontrolled — it manages its own edit buffer.
+ * The home-screen prompt box: a bordered, focused text area. The textarea is
+ * uncontrolled (it owns its edit buffer); on submit we read its `plainText` via
+ * a ref and hand it to the parent — this is the OpenTUI-native way to capture
+ * input. Hints are left to the consuming screen.
  */
-export function PromptInput() {
+export function PromptInput({ onSubmit }: PromptInputProps) {
+  const ref = useRef<TextareaRenderable>(null);
+
   return (
     <box flexDirection="column" alignItems="center" width={60}>
       <box
@@ -16,14 +25,17 @@ export function PromptInput() {
         width="100%"
       >
         <textarea
-          placeholder="Ask nightcode anything…"
+          ref={ref}
+          placeholder="Type a screen, then Enter…"
           height={3}
           wrapMode="word"
           focused
+          keyBindings={[
+            { name: "return", action: "submit" },
+            { name: "return", shift: true, action: "newline" },
+          ]}
+          onSubmit={() => onSubmit?.(ref.current?.plainText ?? "")}
         />
-      </box>
-      <box paddingTop={1}>
-        <text attributes={TextAttributes.DIM}>enter for newline · esc to exit</text>
       </box>
     </box>
   );
