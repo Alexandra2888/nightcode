@@ -1,7 +1,8 @@
-import { MemoryRouter, Routes, Route, Navigate } from "react-router";
+import { MemoryRouter, Routes, Route } from "react-router";
 import { HomeScreen } from "./screens/home-screen.tsx";
 import { SettingsScreen } from "./screens/settings-screen.tsx";
 import { AboutScreen } from "./screens/about-screen.tsx";
+import { NotFoundScreen } from "./screens/not-found-screen.tsx";
 
 /**
  * Root router shell. We use `MemoryRouter` (in-memory history) because a TUI has
@@ -17,7 +18,7 @@ export function App() {
         <Route path="/" element={<HomeScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="/about" element={<AboutScreen />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundScreen />} />
       </Routes>
     </MemoryRouter>
   );
