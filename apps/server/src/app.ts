@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { chatRoute } from "./routes/chat/route.ts";
+import { sessionsRoute } from "./routes/sessions/route.ts";
 
 // Root application shell. It wires cross-cutting middleware and mounts each
 // route group under its base path — it holds no route logic of its own.
@@ -10,7 +11,10 @@ import { chatRoute } from "./routes/chat/route.ts";
 // route group, follow the `routes/chat/` template (route.ts + schema.ts +
 // route.test.ts) and mount it here with another chained
 // `.route("/<group>", <group>Route)`.
-const app = new Hono().use(logger()).route("/chat", chatRoute);
+const app = new Hono()
+  .use(logger())
+  .route("/chat", chatRoute)
+  .route("/sessions", sessionsRoute);
 
 // Export the app + route type so tests and the CLI's Hono RPC client can share
 // types. This module is import-safe: it never binds a port, so importing it

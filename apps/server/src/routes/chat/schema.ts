@@ -24,3 +24,6 @@ export const chatBody = z.object({
       return result.data;
     }),
 });
+
+// Param for POST /chat/:sessionId — the session the streamed turn belongs to.
+export const chatParam = z.object({ sessionId: z.string() });

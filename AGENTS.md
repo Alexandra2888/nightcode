@@ -90,6 +90,28 @@ package is discovered automatically once its folder exists.
   enhanced/kitty keyboard protocol (Ghostty, Kitty, WezTerm, recent iTerm2). In
   a basic terminal both send the same bytes, so Shift+Enter will submit too.
 
+### React effects (`apps/cli`)
+
+- **No fire-and-forget async IIFEs in effects.** Do NOT write
+  `useEffect(() => { void (async () => { … })() }, [])`. Define a named async
+  function inside the effect, call it, and use a `cancelled` flag with a cleanup
+  return so a stale async result (from a fast unmount / dep change) is ignored:
+  ```ts
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const data = await fetchThing();
+      if (cancelled) return;
+      // …use data…
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [dep]);
+  ```
+  See `screens/chat-screen.tsx` for a real example (session hydration).
+
 ## Commands (run from the repo root)
 
 | Command               | What it does                                     |

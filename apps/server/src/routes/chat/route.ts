@@ -2,15 +2,16 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import {
   convertToModelMessages,
-  createUIMessageStreamResponse,
+  generateId,
   stepCountIs,
   streamText,
   tool,
-  toUIMessageStream,
 } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
-import { chatBody } from "./schema.ts";
+import { prisma } from "nightcode-database/client";
+import type { Prisma } from "nightcode-database";
+import { chatBody, chatParam } from "./schema.ts";
 
 /**
  * A single fake tool so the client can exercise reasoning + tool-invocation
@@ -55,18 +56,44 @@ const tools = {
  * the assistant's reply, and encode it as a UI-message stream that the CLI's
  * `useChat` hook consumes. Uses Haiku 4.5 — cheapest/fastest for testing.
  *
- * Conversation state is NOT persisted server-side (no database yet): every
- * request carries the full history, so the server stays stateless.
+ * Persistence: the turn belongs to a session (`:sessionId`, created up front via
+ * `POST /sessions`). We persist the newest user message before streaming and the
+ * assistant reply on finish — history is read back via `GET /sessions/:id/messages`.
+ * The client still sends the full history each turn, so we only need to store the
+ * last message here; both writes upsert by message id, so retries are idempotent.
  *
  * POST (not GET) because `useChat`'s transport is hardcoded to POST a JSON body.
  * That hook owns its own request, so this route is reached by URL rather than
  * the Hono RPC client.
  */
 export const chatRoute = new Hono().post(
-  "/",
+  "/:sessionId",
+  zValidator("param", chatParam),
   zValidator("json", chatBody),
   async (c) => {
+    const { sessionId } = c.req.valid("param");
     const { messages } = c.req.valid("json");
+
+    // The session must exist (created by `POST /sessions`). 404 if the client
+    // streams to an unknown/deleted session.
+    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    if (!session) return c.json({ error: "Session not found" }, 404);
+
+    // Persist the newest message (the user's turn) before streaming, so it's
+    // saved even if generation errors. Upsert keeps it idempotent across retries.
+    const last = messages[messages.length - 1];
+    await prisma.message.upsert({
+      where: { id: last.id },
+      create: {
+        id: last.id,
+        sessionId,
+        role: last.role,
+        parts: last.parts as Prisma.InputJsonValue,
+        metadata: last.metadata as Prisma.InputJsonValue,
+      },
+      update: {},
+    });
+
     const result = streamText({
       model: anthropic("claude-haiku-4-5"),
       system:
@@ -87,11 +114,28 @@ export const chatRoute = new Hono().post(
       },
       messages: await convertToModelMessages(messages),
     });
-    return createUIMessageStreamResponse({
-      // `sendReasoning` defaults to true; set explicitly so reasoning parts are
-      // guaranteed in the UI stream. (This is a server-stream option — there is
-      // no such option on the client's `useChat`.)
-      stream: toUIMessageStream({ stream: result.stream, sendReasoning: true }),
+
+    return result.toUIMessageStreamResponse({
+      // Without `generateMessageId`, a normal user→assistant turn's response
+      // message ships with no id (AI SDK only auto-assigns one in the assistant-
+      // continuation case) — so we'd persist an empty id below. Pass `generateId`
+      // explicitly. `sendReasoning` defaults to true; set explicitly for clarity.
+      generateMessageId: generateId,
+      sendReasoning: true,
+      onFinish: async ({ responseMessage, isAborted }) => {
+        if (isAborted) return;
+        await prisma.message.upsert({
+          where: { id: responseMessage.id },
+          create: {
+            id: responseMessage.id,
+            sessionId,
+            role: responseMessage.role,
+            parts: responseMessage.parts as Prisma.InputJsonValue,
+            metadata: responseMessage.metadata as Prisma.InputJsonValue,
+          },
+          update: {},
+        });
+      },
     });
   },
 );

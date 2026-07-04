@@ -15,7 +15,7 @@ export function App() {
     <MemoryRouter>
       <Routes>
         <Route path="/" element={<HomeScreen />} />
-        <Route path="/chat" element={<ChatScreen />} />
+        <Route path="/sessions/:id" element={<ChatScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>
     </MemoryRouter>

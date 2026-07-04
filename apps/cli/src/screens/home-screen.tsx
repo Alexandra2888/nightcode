@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { TextAttributes } from "@opentui/core";
 import { AsciiArt } from "../components/ascii-art.tsx";
 import { ChatTextArea } from "../components/chat/chat-text-area.tsx";
+import { client } from "../lib/client.ts";
+import type { ChatNavState } from "../lib/nav-state.ts";
 
 export function HomeScreen() {
   const renderer = useRenderer();
@@ -13,10 +15,19 @@ export function HomeScreen() {
     if (key.name === "escape") renderer.destroy();
   });
 
-  // Submitting the prompt hands off to the chat screen, passing the exact typed
-  // input (unmodified) as router state so the chat screen can render it.
-  const handleSubmit = (value: string) => {
-    navigate("/chat", { state: { input: value } });
+  // Submitting the prompt creates the session first (so its id is known before we
+  // navigate), then hands off to that session's chat screen with the typed input
+  // in router state — the chat screen sends it as the opening message once the
+  // session has hydrated. If the server is unreachable, stay put.
+  const handleSubmit = async (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const res = await client.sessions.$post({ json: { prompt: trimmed } });
+    if (!res.ok) return;
+    const { id } = await res.json();
+    navigate(`/sessions/${id}`, {
+      state: { input: trimmed } satisfies ChatNavState,
+    });
   };
 
   return (
