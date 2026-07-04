@@ -1,38 +1,57 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
   getToolName,
   isToolUIPart,
-  lastAssistantMessageIsCompleteWithApprovalResponses,
   lastAssistantMessageIsCompleteWithToolCalls,
   safeValidateUIMessages,
 } from "ai";
 import type { UIMessage } from "ai";
 import { useKeyboard } from "@opentui/react";
 import { useNavigate, useLocation, useParams } from "react-router";
+import { toolSchemas } from "nightcode-tools";
+import { runTool } from "nightcode-tools/runtime";
 import { client } from "../lib/client.ts";
 import { chatNavState } from "../lib/nav-state.ts";
-import { runTool } from "nightcode-tools/runtime";
 import { ChatShell } from "../components/chat/chat-shell.tsx";
 
 /** A mutating tool call awaiting the user's approve/deny decision in the TUI. */
-export type PendingApproval = { id: string; toolName: string; detail?: string };
+export type PendingApproval = {
+  id: string;
+  toolName: string;
+  input: unknown;
+  detail?: string;
+};
+
+/** Whether a tool must be confirmed by the user before it runs (write/edit/bash). */
+function needsApproval(toolName: string): boolean {
+  const schema = (
+    toolSchemas as Record<string, { needsApproval: boolean } | undefined>
+  )[toolName];
+  return schema?.needsApproval ?? false;
+}
 
 /**
- * Scan the transcript for the first tool call still waiting on approval. The
- * server gates `write_file` / `edit_file` / `bash` behind `user-approval`, so
- * they arrive as `approval-requested` tool parts; we surface them one at a time
- * (the SDK only resubmits once every request has a response). `detail` is a
- * short summary of what will happen — the target path or the shell command.
+ * The first tool call awaiting user confirmation. Approval is done entirely on
+ * the client (the server has no `toolApproval`): `onToolCall` deliberately does
+ * NOT produce a result for a mutating tool, so it sits in `input-available` with
+ * no output until the user decides. We surface those one at a time. `detail` is
+ * a short summary of what will happen — the target path or the shell command.
  */
 function findPendingApproval(messages: UIMessage[]): PendingApproval | null {
   for (const message of messages) {
+    if (message.role !== "assistant") continue;
     for (const part of message.parts) {
-      if (isToolUIPart(part) && part.state === "approval-requested") {
+      if (
+        isToolUIPart(part) &&
+        part.state === "input-available" &&
+        needsApproval(getToolName(part))
+      ) {
         return {
-          id: part.approval.id,
+          id: part.toolCallId,
           toolName: getToolName(part),
+          input: part.input,
           detail: approvalDetail(part.input),
         };
       }
@@ -61,10 +80,11 @@ function approvalDetail(input: unknown): string | undefined {
  * This is a coding agent: the server forwards tool calls (its tools have no
  * `execute`), and `onToolCall` runs them locally against the working directory
  * via `runTool`, returning results with `addToolOutput`. Mutating tools
- * (`write_file`/`edit_file`) are gated server-side by `user-approval`, so they
- * only reach `onToolCall` after the user approves them here.
- * `sendAutomaticallyWhen` resubmits the conversation once all tool results — or
- * all approval responses — are in, continuing the loop.
+ * (`write_file`/`edit_file`/`bash`) are gated by CLIENT-SIDE approval: for those,
+ * `onToolCall` returns without a result, leaving the call in `input-available`;
+ * the TUI shows a y/n prompt, and only on approve do we run it and return the
+ * result. `sendAutomaticallyWhen` resubmits once every tool call has a result,
+ * continuing the loop.
  */
 export function ChatScreen() {
   const navigate = useNavigate();
@@ -86,58 +106,81 @@ export function ChatScreen() {
       }),
     [sessionId],
   );
-  const {
-    messages,
-    sendMessage,
-    setMessages,
-    status,
-    error,
-    stop,
-    addToolOutput,
-    addToolApprovalResponse,
-  } = useChat({
-    id: sessionId,
-    transport,
-    // Resubmit automatically once the last assistant turn is complete — either
-    // every forwarded tool call has a result, or every approval request has a
-    // response — so the agent loop advances without a manual send.
-    sendAutomaticallyWhen: (options) =>
-      lastAssistantMessageIsCompleteWithToolCalls(options) ||
-      lastAssistantMessageIsCompleteWithApprovalResponses(options),
-    // Execute a forwarded tool call locally against the working directory. These
-    // arrive as dynamic tool calls (the server sends no tool types), so there's
-    // no `dynamic` early-return — every call is one of ours. `runTool` validates
-    // the input with the shared schema before touching the filesystem.
-    async onToolCall({ toolCall }) {
-      try {
-        const output = await runTool(toolCall.toolName, toolCall.input);
-        addToolOutput({ tool: toolCall.toolName, toolCallId: toolCall.toolCallId, output });
-      } catch (err) {
-        addToolOutput({
-          tool: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          state: "output-error",
-          errorText: err instanceof Error ? err.message : String(err),
-        });
-      }
-    },
-  });
+  const { messages, sendMessage, setMessages, status, error, stop, addToolOutput } =
+    useChat({
+      id: sessionId,
+      transport,
+      // Resubmit once the last assistant turn's tool calls all have results, so
+      // the agent loop advances without a manual send.
+      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+      // Execute a forwarded tool call locally against the working directory.
+      // These arrive as dynamic tool calls (the server sends no tool types), so
+      // there's no `dynamic` early-return — every call is one of ours. Mutating
+      // tools are held for approval: we return WITHOUT a result and let the TUI
+      // prompt drive it (see `approve` below). Read-only tools run immediately.
+      async onToolCall({ toolCall }) {
+        if (needsApproval(toolCall.toolName)) return;
+        await runAndReport(toolCall.toolName, toolCall.toolCallId, toolCall.input);
+      },
+    });
 
-  const pendingApproval = findPendingApproval(messages);
+  // Run a tool and report its result (or error) back to the chat. Shared by the
+  // auto-execute path (read tools) and the approve path (mutating tools).
+  async function runAndReport(toolName: string, toolCallId: string, input: unknown) {
+    try {
+      const output = await runTool(toolName, input);
+      addToolOutput({ tool: toolName, toolCallId, output });
+    } catch (err) {
+      addToolOutput({
+        tool: toolName,
+        toolCallId,
+        state: "output-error",
+        errorText: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // Ids currently being approved/executed — bridges the async gap between the
+  // keypress and the tool result so the prompt hides and a second press can't
+  // double-run. The ref is the synchronous guard; the state drives re-render.
+  const decidedRef = useRef<Set<string>>(new Set());
+  const [running, setRunning] = useState<readonly string[]>([]);
+
+  const rawPending = findPendingApproval(messages);
+  const pendingApproval =
+    rawPending && !running.includes(rawPending.id) ? rawPending : null;
+
+  function approve(p: PendingApproval) {
+    if (decidedRef.current.has(p.id)) return;
+    decidedRef.current.add(p.id);
+    setRunning((ids) => [...ids, p.id]);
+    runAndReport(p.toolName, p.id, p.input).finally(() => {
+      decidedRef.current.delete(p.id);
+      setRunning((ids) => ids.filter((x) => x !== p.id));
+    });
+  }
+
+  function deny(p: PendingApproval) {
+    if (decidedRef.current.has(p.id)) return;
+    decidedRef.current.add(p.id);
+    addToolOutput({
+      tool: p.toolName,
+      toolCallId: p.id,
+      state: "output-error",
+      errorText: "The user denied this action.",
+    });
+  }
 
   useKeyboard((key) => {
     if (key.name === "escape") {
       navigate(-1);
       return;
     }
-    // While a file change awaits approval, y/n decide it; the reply box is
+    // While a mutating tool awaits approval, y/n decide it; the reply box is
     // hidden (see ChatShell) so these keystrokes can't leak into it.
     if (pendingApproval) {
-      if (key.name === "y") {
-        addToolApprovalResponse({ id: pendingApproval.id, approved: true });
-      } else if (key.name === "n") {
-        addToolApprovalResponse({ id: pendingApproval.id, approved: false });
-      }
+      if (key.name === "y") approve(pendingApproval);
+      else if (key.name === "n") deny(pendingApproval);
     }
   });
 

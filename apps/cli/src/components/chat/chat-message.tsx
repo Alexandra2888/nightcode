@@ -1,6 +1,7 @@
 import { TextAttributes } from "@opentui/core";
 import { isToolUIPart, getToolName } from "ai";
 import type { UIMessage, ToolUIPart } from "ai";
+import { toolSchemas } from "nightcode-tools";
 import { errorColor } from "../../lib/theme.ts";
 
 type MessagePart = UIMessage["parts"][number];
@@ -31,6 +32,14 @@ const toolStateLabels: Record<ToolState, string> = {
   "output-error": "error",
   "output-denied": "denied",
 };
+
+/** Whether a tool is one the user must confirm before it runs (write/edit/bash). */
+function awaitingApproval(toolName: string): boolean {
+  const schema = (
+    toolSchemas as Record<string, { needsApproval: boolean } | undefined>
+  )[toolName];
+  return schema?.needsApproval ?? false;
+}
 
 /** DIM glyph label above every row — one per message kind. */
 function RoleLabel({ kind }: { kind: MessageKind }) {
@@ -67,9 +76,15 @@ function Part({ part }: { part: MessagePart }) {
         </text>
       );
     }
+    // A mutating tool held for client-side approval sits in `input-available`
+    // with no result; show that rather than the generic "running…".
+    const label =
+      part.state === "input-available" && awaitingApproval(name)
+        ? "awaiting approval"
+        : toolStateLabels[part.state];
     return (
       <text attributes={TextAttributes.DIM}>
-        ⚒ {name} · {toolStateLabels[part.state]}
+        ⚒ {name} · {label}
       </text>
     );
   }

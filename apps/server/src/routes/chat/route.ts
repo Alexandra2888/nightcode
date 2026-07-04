@@ -11,7 +11,6 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { prisma } from "nightcode-database/client";
 import type { Prisma } from "nightcode-database";
 import {
-  toolSchemas,
   readFile,
   listDirectory,
   writeFile,
@@ -28,7 +27,16 @@ import { chatBody, chatParam } from "./schema.ts";
  * hosted remotely and has no filesystem, so each tool call is forwarded to the
  * CLI, which runs it against the user's working directory (see the CLI's
  * `onToolCall` + `apps/cli/src/tools/`). The server only decides which tools
- * exist and — via `toolApproval` below — which need the user's OK first.
+ * exist; the CLI executes them.
+ *
+ * Approval is deliberately NOT done here with `toolApproval`. That mechanism is
+ * for server-executed tools: approve → the server runs `execute` → produces the
+ * `tool_result` → continues. Our tools have no `execute`, so after an approval
+ * the SDK would re-call the model with a `tool_use` and no `tool_result`, which
+ * Anthropic rejects. Approval for mutating tools (write_file/edit_file/bash) is
+ * handled entirely on the CLI instead: it defers the tool result until the user
+ * confirms, then returns a normal result — the same forward→execute→result path
+ * the read tools use. See `apps/cli/src/screens/chat-screen.tsx`.
  *
  * Built explicitly (rather than mapping over `toolSchemas`) so each `tool()`
  * receives a single concrete Zod schema; mapping would hand it a union of the
@@ -42,18 +50,6 @@ const tools = {
   grep: tool({ description: grep.description, inputSchema: grep.inputSchema }),
   bash: tool({ description: bash.description, inputSchema: bash.inputSchema }),
 };
-
-/**
- * Approval policy, derived from each tool's `needsApproval`. Mutating tools
- * (`write_file`, `edit_file`, `bash`) get `user-approval`, so the SDK emits a
- * `tool-approval-request` — even though the tool has no `execute` here — and the
- * call is only forwarded to the CLI after the user approves it in the TUI.
- */
-const toolApproval = Object.fromEntries(
-  Object.entries(toolSchemas)
-    .filter(([, s]) => s.needsApproval)
-    .map(([name]) => [name, "user-approval" as const]),
-);
 
 /**
  * `/chat` route group — and the template for every future endpoint / route
@@ -125,7 +121,6 @@ export const chatRoute = new Hono().post(
         "the dedicated file tools over bash for reading/editing so changes " +
         "stay reviewable. Explain what you did after making changes.",
       tools,
-      toolApproval,
       // Multi-tool agent loops (read → edit → read → …) need room to run: each
       // tool call + its result is a step, so 20 leaves headroom for a realistic
       // task before the loop is cut off.

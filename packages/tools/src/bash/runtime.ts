@@ -17,7 +17,7 @@ function timeoutMs(): number {
  * Run a shell command with cwd set to the workspace. Unlike the file tools this
  * is NOT confined to the workspace — a command can read absolute paths, `cd`
  * out, or reach the network — which is why `bash` is gated behind user approval
- * (see the server's `toolApproval`). A timeout kills a runaway command
+ * (client-side, in the CLI, before this runs). A timeout kills a runaway command
  * (SIGKILL); output is captured and truncated so it can't flood the model's
  * context.
  */

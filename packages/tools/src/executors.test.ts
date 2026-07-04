@@ -43,6 +43,17 @@ test("read_file returns file contents", async () => {
   expect(await readFile({ path: "a.txt" })).toEqual({ path: "a.txt", content: "hello" });
 });
 
+test("read_file on a directory returns a message pointing to list_directory", async () => {
+  await writeFile({ path: "dir/x.txt", content: "x" });
+  expect(readFile({ path: "dir" })).rejects.toThrow(
+    /is a directory.*list_directory/,
+  );
+});
+
+test("read_file on a missing file reports it clearly", async () => {
+  expect(readFile({ path: "nope.txt" })).rejects.toThrow(/No such file: nope\.txt/);
+});
+
 test("write_file creates a file, including missing parent dirs", async () => {
   const result = await writeFile({ path: "nested/dir/b.txt", content: "hi" });
   expect(result).toEqual({ path: "nested/dir/b.txt", bytesWritten: 2 });

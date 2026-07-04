@@ -2,8 +2,8 @@ import { z } from "zod";
 
 /**
  * `write_file` — create or overwrite a file with the given content. Mutates the
- * filesystem, so `needsApproval` is true: the server gates it behind a
- * `user-approval` request and the CLI only writes after the user approves.
+ * filesystem, so `needsApproval` is true: the CLI holds the call for a y/n
+ * confirmation and only writes after the user approves.
  */
 export const writeFile = {
   name: "write_file",
