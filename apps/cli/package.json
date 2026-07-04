@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@types/react": ">=19.0.0",
+    "nightcode-database": "workspace:*",
     "server": "workspace:*"
   }
 }

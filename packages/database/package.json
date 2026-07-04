@@ -1,0 +1,24 @@
+{
+  "name": "nightcode-database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts"
+  },
+  "scripts": {
+    "generate": "bunx --bun prisma generate",
+    "migrate": "bunx --bun prisma migrate dev",
+    "studio": "bunx --bun prisma studio"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "latest",
+    "@prisma/client": "latest",
+    "pg": "latest"
+  },
+  "devDependencies": {
+    "prisma": "latest",
+    "@types/pg": "latest"
+  }
+}

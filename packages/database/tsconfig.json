@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "dist",
+    // The generated Prisma Client is included so the composite project resolves
+    // it, but it is machine-generated third-party code — don't lint it for
+    // unused locals/params.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src/**/*", "prisma.config.ts", "generated/**/*"]
+}

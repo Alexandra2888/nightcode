@@ -9,3 +9,6 @@ dist/
 .cursorrules
 
 /apps/server/.env
+
+# Prisma Client is generated into the database package; regenerate with `prisma generate`.
+/packages/database/generated/
