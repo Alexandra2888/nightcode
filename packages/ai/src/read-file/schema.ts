@@ -13,5 +13,12 @@ export const readFile = {
   inputSchema: z.object({
     path: z.string().min(1).describe("File path relative to the working directory."),
   }),
+  outputSchema: z.object({
+    path: z.string(),
+    content: z.string(),
+  }),
   needsApproval: false,
 } as const;
+
+export type ReadFileInput = z.infer<typeof readFile.inputSchema>;
+export type ReadFileOutput = z.infer<typeof readFile.outputSchema>;

@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { createAgentUIStreamResponse, generateId } from "ai";
 import { prisma } from "nightcode-database/client";
 import type { Prisma } from "nightcode-database";
-import { chatAgent } from "../../agent.ts";
+import { codingAgent } from "nightcode-ai/server";
 import { chatBody, chatParam } from "./schema.ts";
 
 /**
@@ -20,7 +20,7 @@ import { chatBody, chatParam } from "./schema.ts";
  * is what keeps the exported `AppType` inferable for the CLI's RPC client, so
  * never split the chain into separate `chatRoute.post(...)` statements.
  *
- * The chat endpoint runs the reusable `chatAgent` (see `src/agent.ts`) via the
+ * The chat endpoint runs the reusable `codingAgent` (from `nightcode-ai/server`) via the
  * AI SDK's `createAgentUIStreamResponse` (Anthropic provider, reads
  * ANTHROPIC_API_KEY). The client POSTs the whole running `messages` history (see
  * `schema.ts`); the helper converts it to model messages internally, streams the
@@ -72,7 +72,7 @@ export const chatRoute = new Hono().post(
     // `convertToModelMessages`. The stream options mirror the previous
     // `toUIMessageStreamResponse` call, so persistence is unchanged.
     return createAgentUIStreamResponse({
-      agent: chatAgent,
+      agent: codingAgent,
       uiMessages: messages,
       // Without `generateMessageId`, a normal user→assistant turn's response
       // message ships with no id (AI SDK only auto-assigns one in the assistant-

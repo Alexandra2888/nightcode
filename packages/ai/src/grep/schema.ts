@@ -19,5 +19,19 @@ export const grep = {
       .default(".")
       .describe("Directory to search under, relative to the working directory."),
   }),
+  outputSchema: z.object({
+    path: z.string(),
+    matches: z.array(
+      z.object({
+        file: z.string(),
+        line: z.number(),
+        text: z.string(),
+      }),
+    ),
+    truncated: z.boolean(),
+  }),
   needsApproval: false,
 } as const;
+
+export type GrepInput = z.infer<typeof grep.inputSchema>;
+export type GrepOutput = z.infer<typeof grep.outputSchema>;

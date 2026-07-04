@@ -5,8 +5,7 @@
   "type": "module",
   "module": "src/index.ts",
   "exports": {
-    "./app": "./src/app.ts",
-    "./agent": "./src/agent.ts"
+    "./app": "./src/app.ts"
   },
   "scripts": {
     "dev": "bun --watch run src/index.ts",
@@ -15,11 +14,10 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.8",
     "@hono/zod-validator": "^0.8.0",
     "ai": "^7.0.15",
+    "nightcode-ai": "workspace:*",
     "nightcode-database": "workspace:*",
-    "nightcode-tools": "workspace:*",
     "hono": "latest",
     "zod": "^4.4.3"
   }

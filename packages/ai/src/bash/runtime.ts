@@ -1,5 +1,5 @@
-import type { ToolInput } from "../index.ts";
-import { workspaceRoot } from "../resolve-within-workspace.ts";
+import type { ToolInput } from "../types.ts";
+import { workspaceRoot } from "../workspace.ts";
 
 const MAX_OUTPUT = 30_000;
 const DEFAULT_TIMEOUT_MS = 120_000;

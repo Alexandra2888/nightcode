@@ -15,5 +15,17 @@ export const listDirectory = {
       .default(".")
       .describe("Directory path relative to the working directory. Defaults to '.'."),
   }),
+  outputSchema: z.object({
+    path: z.string(),
+    entries: z.array(
+      z.object({
+        name: z.string(),
+        type: z.enum(["file", "directory"]),
+      }),
+    ),
+  }),
   needsApproval: false,
 } as const;
+
+export type ListDirectoryInput = z.infer<typeof listDirectory.inputSchema>;
+export type ListDirectoryOutput = z.infer<typeof listDirectory.outputSchema>;

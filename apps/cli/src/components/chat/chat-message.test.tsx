@@ -1,6 +1,6 @@
 import { test, expect, afterEach } from "bun:test";
 import { testRender } from "@opentui/react/test-utils";
-import type { ChatUIMessage } from "server/agent";
+import type { CodingAgentUIMessage } from "nightcode-ai/client";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 
 // These exercise the message part-type branches that the text-only /chat
@@ -20,7 +20,7 @@ async function frameFor(node: React.ReactNode) {
 }
 
 test("renders a user text message with its role label", async () => {
-  const message: ChatUIMessage = {
+  const message: CodingAgentUIMessage = {
     id: "m1",
     role: "user",
     parts: [{ type: "text", text: "build me a login screen" }],
@@ -31,7 +31,7 @@ test("renders a user text message with its role label", async () => {
 });
 
 test("renders reasoning and text parts of an assistant message", async () => {
-  const message: ChatUIMessage = {
+  const message: CodingAgentUIMessage = {
     id: "m2",
     role: "assistant",
     parts: [
@@ -46,7 +46,7 @@ test("renders reasoning and text parts of an assistant message", async () => {
 });
 
 test("renders a completed tool invocation with its name and status", async () => {
-  const message: ChatUIMessage = {
+  const message: CodingAgentUIMessage = {
     id: "m3",
     role: "assistant",
     parts: [
@@ -55,7 +55,7 @@ test("renders a completed tool invocation with its name and status", async () =>
         toolCallId: "t1",
         state: "output-available",
         input: { pattern: "auth", path: "." },
-        output: { hits: 3 },
+        output: { path: ".", matches: [], truncated: false },
       },
     ],
   };
@@ -65,7 +65,7 @@ test("renders a completed tool invocation with its name and status", async () =>
 });
 
 test("renders a failed tool invocation with its error text", async () => {
-  const message: ChatUIMessage = {
+  const message: CodingAgentUIMessage = {
     id: "m4",
     role: "assistant",
     parts: [

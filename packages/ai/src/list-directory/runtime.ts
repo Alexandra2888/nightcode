@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
-import type { ToolInput } from "../index.ts";
-import { resolveWithinWorkspace } from "../resolve-within-workspace.ts";
+import type { ToolInput } from "../types.ts";
+import { resolveWithinWorkspace } from "../workspace.ts";
 
 /** List the entries of a directory within the working directory. */
 export async function listDirectory({ path }: ToolInput<"list_directory">) {

@@ -22,7 +22,7 @@ let root: string;
 let cwd: string;
 
 beforeAll(() => {
-  root = realpathSync(mkdtempSync(join(tmpdir(), "nightcode-tools-")));
+  root = realpathSync(mkdtempSync(join(tmpdir(), "nightcode-ai-")));
   cwd = process.cwd();
   process.chdir(root);
 });

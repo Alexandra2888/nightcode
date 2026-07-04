@@ -21,5 +21,12 @@ export const editFile = {
       .describe("The exact text to replace. Must match exactly once in the file."),
     newString: z.string().describe("The text to replace it with."),
   }),
+  outputSchema: z.object({
+    path: z.string(),
+    replaced: z.literal(true),
+  }),
   needsApproval: true,
 } as const;
+
+export type EditFileInput = z.infer<typeof editFile.inputSchema>;
+export type EditFileOutput = z.infer<typeof editFile.outputSchema>;

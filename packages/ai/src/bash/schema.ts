@@ -21,5 +21,14 @@ export const bash = {
   inputSchema: z.object({
     command: z.string().min(1).describe("The shell command to run."),
   }),
+  outputSchema: z.object({
+    exitCode: z.number(),
+    timedOut: z.boolean(),
+    stdout: z.string(),
+    stderr: z.string(),
+  }),
   needsApproval: true,
 } as const;
+
+export type BashInput = z.infer<typeof bash.inputSchema>;
+export type BashOutput = z.infer<typeof bash.outputSchema>;

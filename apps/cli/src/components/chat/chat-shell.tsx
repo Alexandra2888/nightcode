@@ -1,7 +1,9 @@
 import { TextAttributes } from "@opentui/core";
 import type { ChatStatus } from "ai";
-import type { ChatUIMessage } from "server/agent";
-import type { PendingApproval } from "../../screens/chat-screen.tsx";
+import type {
+  CodingAgentUIMessage,
+  PendingApproval,
+} from "nightcode-ai/client";
 import { warnColor } from "../../lib/theme.ts";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 import { ChatTextArea } from "./chat-text-area.tsx";
@@ -14,7 +16,7 @@ function oneLine(s: string, max = 200): string {
 }
 
 type ChatShellProps = {
-  messages: ChatUIMessage[];
+  messages: CodingAgentUIMessage[];
   status: ChatStatus;
   error?: Error;
   pendingApproval: PendingApproval | null;

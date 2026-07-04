@@ -1,6 +1,6 @@
 import { readFile as fsReadFile } from "node:fs/promises";
-import type { ToolInput } from "../index.ts";
-import { resolveWithinWorkspace } from "../resolve-within-workspace.ts";
+import type { ToolInput } from "../types.ts";
+import { resolveWithinWorkspace } from "../workspace.ts";
 import { hasErrorCode } from "../errno.ts";
 
 /**

@@ -1,7 +1,7 @@
 import { writeFile as fsWriteFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { ToolInput } from "../index.ts";
-import { resolveWithinWorkspace } from "../resolve-within-workspace.ts";
+import type { ToolInput } from "../types.ts";
+import { resolveWithinWorkspace } from "../workspace.ts";
 
 /**
  * Create or overwrite a file within the working directory, creating any missing

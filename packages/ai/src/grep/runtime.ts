@@ -1,7 +1,7 @@
 import { readdir, readFile as fsReadFile } from "node:fs/promises";
 import { join, relative } from "node:path";
-import type { ToolInput } from "../index.ts";
-import { resolveWithinWorkspace } from "../resolve-within-workspace.ts";
+import type { ToolInput } from "../types.ts";
+import { resolveWithinWorkspace } from "../workspace.ts";
 
 const IGNORED = new Set([".git", "node_modules"]);
 const MAX_MATCHES = 200;

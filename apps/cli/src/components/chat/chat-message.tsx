@@ -1,15 +1,15 @@
 import { TextAttributes } from "@opentui/core";
 import { isToolUIPart, getToolName } from "ai";
 import type { ToolUIPart } from "ai";
-import { toolSchemas, type ToolName } from "nightcode-tools";
-import type { ChatUIMessage } from "server/agent";
+import { toolSchemas, type ToolName } from "nightcode-ai";
+import type { CodingAgentUIMessage } from "nightcode-ai/client";
 import { errorColor } from "../../lib/theme.ts";
 
-type MessagePart = ChatUIMessage["parts"][number];
+type MessagePart = CodingAgentUIMessage["parts"][number];
 
 // A row's display kind: the SDK's three message roles plus a synthetic "error"
-// for the inline stream-error entry (error is NOT a `ChatUIMessage["role"]`).
-type MessageKind = ChatUIMessage["role"] | "error";
+// for the inline stream-error entry (error is NOT a `CodingAgentUIMessage["role"]`).
+type MessageKind = CodingAgentUIMessage["role"] | "error";
 
 // The tool-invocation state union, derived straight from the SDK's `ToolUIPart`
 // (there is no exported alias). Keying the label maps below off these SDK unions
@@ -92,7 +92,7 @@ function Part({ part }: { part: MessagePart }) {
 }
 
 /** Renders a single conversation message: role glyph + its parts, stacked. */
-export function ChatMessage({ message }: { message: ChatUIMessage }) {
+export function ChatMessage({ message }: { message: CodingAgentUIMessage }) {
   return (
     <box flexDirection="column">
       <RoleLabel kind={message.role} />

@@ -1,6 +1,6 @@
 import { readFile as fsReadFile, writeFile as fsWriteFile } from "node:fs/promises";
-import type { ToolInput } from "../index.ts";
-import { resolveWithinWorkspace } from "../resolve-within-workspace.ts";
+import type { ToolInput } from "../types.ts";
+import { resolveWithinWorkspace } from "../workspace.ts";
 import { hasErrorCode } from "../errno.ts";
 
 /**
@@ -42,5 +42,5 @@ export async function editFile({
   // literally instead of being interpreted as replacement patterns.
   const after = before.replace(oldString, () => newString);
   await fsWriteFile(abs, after, "utf8");
-  return { path, replaced: true };
+  return { path, replaced: true as const };
 }

@@ -12,7 +12,9 @@ package manager.
 apps/
   server/   # Hono HTTP API (runs on Bun)
   cli/      # OpenTUI terminal welcome screen
-packages/   # shared libraries (none yet)
+packages/
+  ai/       # nightcode-ai — all AI/tool definitions (shared/server/client entries)
+  database/ # nightcode-database — Prisma client + schema
 ```
 
 Workspaces are globbed as `["apps/*", "packages/*"]` — a new app or shared
@@ -45,8 +47,8 @@ package is discovered automatically once its folder exists.
 
 - **Always use Hono RPC for requests between the server and CLI whenever
   possible** — never hand-roll `fetch()` with string URLs. The shared client
-  lives at `apps/cli/src/lib/client.ts` (`hc<AppType>` over `server/app`'s
-  type-only `AppType`). Call routes through it: `client.health.$get()`,
+  lives at `apps/cli/src/lib/client.ts` (`hc<AppType>` over the `server/app`
+  subpath's type-only `AppType`). Call routes through it: `client.health.$get()`,
   `client.generate.$get()`, etc. This keeps requests and responses fully typed
   end-to-end, so adding/removing a server field surfaces as a CLI type error.
 - The RPC feature only works because server routes are **chained** (`AppType`
@@ -54,23 +56,46 @@ package is discovered automatically once its folder exists.
 - Reach for raw `fetch` only for a genuinely non-RPC target (a third-party URL);
   anything hitting our own server goes through the `client`.
 
-### The coding agent (`apps/server` ↔ `apps/cli`)
+### The coding agent (`packages/ai`)
 
+- **All AI/tool definitions live in one package, `nightcode-ai`
+  (`packages/ai`)**, with three subpath entries — never scatter them back into
+  the apps:
+  - **`nightcode-ai`** (shared, Zod-only, safe for both sides): `toolSchemas`,
+    the tool type map (`ToolName`/`ToolInputs`/`ToolOutputs`), and `instructions`
+    (the system prompt). Imports no AI SDK and no `fs`.
+  - **`nightcode-ai/server`**: `codingAgent` (the `ToolLoopAgent`) and the
+    re-exported `CodingAgentUIMessage` type. Imports `ai` + `@ai-sdk/anthropic`.
+  - **`nightcode-ai/client`**: `handleCodingAgentToolCall` (runs a forwarded tool
+    call + reports via `addToolOutput`) plus the approval helpers
+    (`needsApproval`, `approvalDetail`, `findPendingApproval`, `PendingApproval`)
+    and the `CodingAgentUIMessage` type. Imports the Node-only runners, so only
+    the CLI pulls it in.
 - **Tool execution lives on the CLI; the server never touches the filesystem.**
-  Tool *schemas* are shared via `packages/tools` (`nightcode-tools`); the server
-  declares them as **execute-less** `tool()`s, so the agent loop stops at each
-  tool call and forwards it to the CLI, which runs it against the user's working
-  directory (`runTool` from `nightcode-tools/runtime`) and resubmits. Approval
-  for mutating tools (write/edit/bash) is therefore a CLI concern too — the CLI
-  withholds the tool result until the user confirms (no server-side
-  `toolApproval`; see the doc comment in `apps/server/src/agent.ts`).
-- The agent config is a reusable module-level **`ToolLoopAgent`** in
-  `apps/server/src/agent.ts` (`chatAgent`), run by the chat route via
-  `createAgentUIStreamResponse`. Its `InferAgentUIMessage` type — exported as
-  `ChatUIMessage` and imported by the CLI via the **`server/agent`** subpath —
-  types `useChat<ChatUIMessage>` end-to-end, so `onToolCall`'s `toolCall.toolName`
-  is the `ToolName` union (with per-tool typed inputs), not `string`. Adding or
-  removing a tool surfaces as a CLI type error.
+  The tools (`codingTools` in `tools/toolset.ts`) are **execute-less** `tool()`s,
+  so the agent loop stops at each tool call and forwards it to the CLI. The CLI's
+  `onToolCall` calls `handleCodingAgentToolCall`, which runs the tool against the
+  working directory and resubmits. Approval for mutating tools (write/edit/bash)
+  is a CLI concern — the CLI withholds the tool result until the user confirms
+  (no server-side `toolApproval`; see the doc comment in `tools/toolset.ts`). The
+  chat route (`apps/server/src/routes/chat/route.ts`) is tool-agnostic: it just
+  runs `createAgentUIStreamResponse({ agent: codingAgent, … })`.
+- **One explicit type map drives compile-time safety.** `packages/ai/src/types.ts`
+  hand-declares `ToolInputs`/`ToolOutputs` (the master key list). Every other
+  registry conforms to it via `satisfies` — `tools/schemas.ts`, `tools/runners.ts`,
+  the `codingTools` literal in `tools/toolset.ts` — and the client's dispatch
+  `switch` in `client.ts` is exhaustive (`default: never`). **Adding a tool** is
+  IDE-guided: create `<tool>/{schema,runtime}.ts` (schema exports its inferred
+  `…Input`/`…Output`), add the key to `ToolInputs`+`ToolOutputs`, then register it
+  in `schemas.ts`, `runners.ts`, the `codingTools` literal, and a `client.ts`
+  `case` — forget any one and it fails to compile. `CodingAgentUIMessage` (derived
+  from `codingTools`) types `useChat<CodingAgentUIMessage>` end-to-end, so
+  `onToolCall`'s `toolCall.toolName` is the `ToolName` union with per-tool typed
+  inputs/outputs, not `string`/`unknown`.
+- **`addToolOutput` is synchronous — never `await` it.** It is the `useChat`
+  helper (`ChatAddToolOutputFunction`); the loop is resubmitted declaratively by
+  `sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls`. Awaiting
+  it (its type reads as `void | PromiseLike<void>`) risks a re-entrancy stall.
 
 ### Server request validation (`apps/server`)
 

@@ -19,7 +19,7 @@
         "@opentui/core": "latest",
         "@opentui/react": "latest",
         "hono": "latest",
-        "nightcode-tools": "workspace:*",
+        "nightcode-ai": "workspace:*",
         "react": ">=19.0.0",
         "react-router": "^8.1.0",
         "zod": "^4.4.3",
@@ -34,12 +34,20 @@
       "name": "server",
       "version": "0.1.0",
       "dependencies": {
-        "@ai-sdk/anthropic": "^4.0.8",
         "@hono/zod-validator": "^0.8.0",
         "ai": "^7.0.15",
         "hono": "latest",
+        "nightcode-ai": "workspace:*",
         "nightcode-database": "workspace:*",
-        "nightcode-tools": "workspace:*",
+        "zod": "^4.4.3",
+      },
+    },
+    "packages/ai": {
+      "name": "nightcode-ai",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ai-sdk/anthropic": "^4.0.8",
+        "ai": "^7.0.15",
         "zod": "^4.4.3",
       },
     },
@@ -54,13 +62,6 @@
       "devDependencies": {
         "@types/pg": "latest",
         "prisma": "latest",
-      },
-    },
-    "packages/tools": {
-      "name": "nightcode-tools",
-      "version": "0.1.0",
-      "dependencies": {
-        "zod": "^4.4.3",
       },
     },
   },
@@ -271,9 +272,9 @@
 
     "named-placeholders": ["named-placeholders@1.1.6", "", { "dependencies": { "lru.min": "^1.1.0" } }, "sha512-Tz09sEL2EEuv5fFowm419c1+a/jSMiBjI9gHxVLrVdbUkkNUUfjsVYs9pVZu5oCon/kmRh9TfLEObFtkVxmY0w=="],
 
-    "nightcode-database": ["nightcode-database@workspace:packages/database"],
+    "nightcode-ai": ["nightcode-ai@workspace:packages/ai"],
 
-    "nightcode-tools": ["nightcode-tools@workspace:packages/tools"],
+    "nightcode-database": ["nightcode-database@workspace:packages/database"],
 
     "ohash": ["ohash@2.0.11", "", {}, "sha512-RdR9FQrFwNBNXAr4GixM8YaRZRJ5PUWbKYbE5eOsrwAjJW0q2REGcf79oYPsLyskQCZG1PLN+S/K1V00joZAoQ=="],
 

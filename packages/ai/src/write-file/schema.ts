@@ -15,5 +15,12 @@ export const writeFile = {
     path: z.string().min(1).describe("File path relative to the working directory."),
     content: z.string().describe("The full content to write to the file."),
   }),
+  outputSchema: z.object({
+    path: z.string(),
+    bytesWritten: z.number(),
+  }),
   needsApproval: true,
 } as const;
+
+export type WriteFileInput = z.infer<typeof writeFile.inputSchema>;
+export type WriteFileOutput = z.infer<typeof writeFile.outputSchema>;

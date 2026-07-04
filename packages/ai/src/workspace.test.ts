@@ -2,7 +2,7 @@ import { test, expect, beforeAll, afterAll } from "bun:test";
 import { mkdtempSync, realpathSync, symlinkSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolveWithinWorkspace } from "./resolve-within-workspace.ts";
+import { resolveWithinWorkspace } from "./workspace.ts";
 
 // resolveWithinWorkspace is the security boundary: it must accept paths inside cwd and
 // reject anything that escapes it. We run from a temp dir so the assertions
