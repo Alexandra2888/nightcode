@@ -101,7 +101,7 @@ test("grep skips node_modules", async () => {
 
 test("grep is confined to the workspace", async () => {
   expect(grep({ pattern: "x", path: "../.." })).rejects.toThrow(
-    /escapes the working directory/,
+    /escapes workspace/,
   );
 });
 
@@ -118,8 +118,22 @@ test("bash reports a non-zero exit code", async () => {
   expect(res.exitCode).toBe(3);
 });
 
+test("bash kills a command that exceeds the timeout", async () => {
+  process.env.NIGHTCODE_BASH_TIMEOUT_MS = "300";
+  try {
+    const start = Date.now();
+    const res = await bash({ command: "sleep 10" });
+    expect(res.timedOut).toBe(true);
+    expect(res.exitCode).not.toBe(0);
+    // Returned promptly — killed near the 300ms budget, not after 10s.
+    expect(Date.now() - start).toBeLessThan(5000);
+  } finally {
+    delete process.env.NIGHTCODE_BASH_TIMEOUT_MS;
+  }
+});
+
 test("a guardrail violation propagates from an executor", async () => {
   expect(readFile({ path: "../../etc/passwd" })).rejects.toThrow(
-    /escapes the working directory/,
+    /escapes workspace/,
   );
 });

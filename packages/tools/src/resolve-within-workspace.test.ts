@@ -29,15 +29,15 @@ test("accepts the working directory itself", () => {
 });
 
 test("rejects parent traversal", () => {
-  expect(() => resolveWithinWorkspace("../escape")).toThrow(/escapes the working directory/);
+  expect(() => resolveWithinWorkspace("../escape")).toThrow(/escapes workspace/);
 });
 
 test("rejects an absolute path outside the tree", () => {
-  expect(() => resolveWithinWorkspace("/etc/passwd")).toThrow(/escapes the working directory/);
+  expect(() => resolveWithinWorkspace("/etc/passwd")).toThrow(/escapes workspace/);
 });
 
 test("rejects traversal that lands outside after normalization", () => {
-  expect(() => resolveWithinWorkspace("src/../../escape")).toThrow(/escapes the working directory/);
+  expect(() => resolveWithinWorkspace("src/../../escape")).toThrow(/escapes workspace/);
 });
 
 test("rejects a symlink whose target is outside the tree", () => {
@@ -45,6 +45,6 @@ test("rejects a symlink whose target is outside the tree", () => {
   // `link` lives inside cwd but points at the parent temp dir (outside cwd).
   symlinkSync(tmpdir(), join(root, "sub", "link"));
   expect(() => resolveWithinWorkspace("sub/link/secret.txt")).toThrow(
-    /escapes the working directory/,
+    /escapes workspace/,
   );
 });

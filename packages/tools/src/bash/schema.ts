@@ -10,10 +10,14 @@ import { z } from "zod";
 export const bash = {
   name: "bash",
   description:
-    "Run a shell command in the current working directory and return its " +
-    "stdout, stderr, and exit code. Use for builds, tests, git, and file " +
-    "operations the other tools don't cover. Prefer the dedicated file tools " +
-    "for reading/editing so changes stay reviewable.",
+    "Run a shell command in the working directory and return its stdout, " +
+    "stderr, and exit code. NOT sandboxed: it runs with the workspace as its " +
+    "cwd but can read absolute paths, modify files outside the dedicated " +
+    "tools, and reach the network, so each command requires the user's " +
+    "approval. Long-running commands are killed after a timeout. Use it for " +
+    "builds, tests, git, and anything the file tools don't cover, but prefer " +
+    "read_file/write_file/edit_file/list_directory/grep for file work so " +
+    "changes stay reviewable.",
   inputSchema: z.object({
     command: z.string().min(1).describe("The shell command to run."),
   }),
