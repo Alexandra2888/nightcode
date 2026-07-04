@@ -16,13 +16,15 @@ type ChatTextAreaProps = {
  *
  * Intentionally dumb: it does NOT trim or guard the value. Callers decide (the
  * home screen wants the exact unmodified input; the chat screen trims + drops
- * empties). Outer sizing/centering is the consuming screen's job.
+ * empties). Sizing is the consuming screen's job too — the bordered box stretches
+ * to fill its parent's width (Yoga's default `alignItems: stretch`), so callers
+ * control the width by wrapping in a sized `<box>` rather than a width prop here.
  */
 export function ChatTextArea({ placeholder, onSubmit }: ChatTextAreaProps) {
   const ref = useRef<TextareaRenderable>(null);
 
   return (
-    <box border borderStyle="rounded" paddingX={1} width="100%">
+    <box border borderStyle="rounded" paddingX={1}>
       <textarea
         ref={ref}
         placeholder={placeholder}
