@@ -13,11 +13,10 @@ export function HomeScreen() {
     if (key.name === "escape") renderer.destroy();
   });
 
-  // Treat the submitted prompt text as a navigation target: "settings" → "/settings".
-  // Unknown paths fall through to the router's "*" catch-all back to "/".
+  // Submitting the prompt hands off to the chat screen, passing the exact typed
+  // input (unmodified) as router state so the chat screen can render it.
   const handleSubmit = (value: string) => {
-    const target = value.trim().replace(/^\/+/, "");
-    if (target) navigate(`/${target}`);
+    navigate("/chat", { state: { input: value } });
   };
 
   return (
@@ -31,7 +30,7 @@ export function HomeScreen() {
       <AsciiArt />
       <PromptInput onSubmit={handleSubmit} />
       <text attributes={TextAttributes.DIM}>
-        screens: settings · about · llm — enter to go · esc to exit
+        enter to go · esc to exit
       </text>
     </box>
   );

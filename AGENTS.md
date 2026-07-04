@@ -63,6 +63,19 @@ package is discovered automatically once its folder exists.
   casts/guards. The validator rejects malformed bodies with a 400 before the
   handler runs, and the inferred types flow through `AppType` to the RPC client.
 
+### Client-side parsing (`apps/cli`)
+
+- **Parse untyped external input with a Zod schema — never type-cast.** Any value
+  that reaches the CLI untyped (router `location.state`, env vars, parsed JSON,
+  etc.) is `any`/`unknown`; validate it with a `z.object({...})` schema instead of
+  an inline `as { … }` cast. This mirrors the server's zod validator and keeps a
+  single source of truth for the shape at runtime, not just at compile time.
+- Use `schema.safeParse(value)` for input that may legitimately be absent (e.g.
+  a screen reached without navigation state) and fall back on `.data?.field`;
+  reach for `.parse()` only when a malformed value should throw. Example — the
+  chat screen reads the home-screen prompt off router state:
+  `const input = chatState.safeParse(location.state).data?.input ?? ""`.
+
 ### OpenTUI gotchas (`apps/cli`)
 
 - **`<textarea>` is uncontrolled** — it owns its edit buffer. There is no

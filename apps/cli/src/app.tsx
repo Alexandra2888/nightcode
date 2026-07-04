@@ -1,8 +1,6 @@
 import { MemoryRouter, Routes, Route } from "react-router";
 import { HomeScreen } from "./screens/home-screen.tsx";
-import { SettingsScreen } from "./screens/settings-screen.tsx";
-import { AboutScreen } from "./screens/about-screen.tsx";
-import { LLMScreen } from "./screens/llm-screen.tsx";
+import { ChatScreen } from "./screens/chat-screen.tsx";
 import { NotFoundScreen } from "./screens/not-found-screen.tsx";
 
 /**
@@ -17,9 +15,7 @@ export function App() {
     <MemoryRouter>
       <Routes>
         <Route path="/" element={<HomeScreen />} />
-        <Route path="/settings" element={<SettingsScreen />} />
-        <Route path="/about" element={<AboutScreen />} />
-        <Route path="/llm" element={<LLMScreen />} />
+        <Route path="/chat" element={<ChatScreen />} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>
     </MemoryRouter>
