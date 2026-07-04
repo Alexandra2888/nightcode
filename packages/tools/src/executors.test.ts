@@ -94,6 +94,19 @@ test("edit_file throws when oldString is not unique", async () => {
   );
 });
 
+test("edit_file on a directory reports it clearly", async () => {
+  await writeFile({ path: "dir/x.txt", content: "x" });
+  expect(editFile({ path: "dir", oldString: "a", newString: "b" })).rejects.toThrow(
+    /is a directory/,
+  );
+});
+
+test("edit_file on a missing file points to write_file", async () => {
+  expect(
+    editFile({ path: "gone.txt", oldString: "a", newString: "b" }),
+  ).rejects.toThrow(/No such file: gone\.txt.*write_file/);
+});
+
 test("grep finds matching lines with file + line number", async () => {
   writeFileSync(join(root, "a.ts"), "const x = 1;\nconst y = 2;");
   await writeFile({ path: "sub/b.ts", content: "let x = 3;" });

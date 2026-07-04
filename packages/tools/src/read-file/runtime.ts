@@ -1,6 +1,7 @@
 import { readFile as fsReadFile } from "node:fs/promises";
 import type { ToolInput } from "../index.ts";
 import { resolveWithinWorkspace } from "../resolve-within-workspace.ts";
+import { hasErrorCode } from "../errno.ts";
 
 /**
  * Read a UTF-8 file from within the working directory. Node's raw errors for the
@@ -14,23 +15,14 @@ export async function readFile({ path }: ToolInput<"read_file">) {
     const content = await fsReadFile(abs, "utf8");
     return { path, content };
   } catch (err) {
-    if (hasCode(err, "EISDIR")) {
+    if (hasErrorCode(err, "EISDIR")) {
       throw new Error(
         `${path} is a directory, not a file. Use list_directory to see its contents.`,
       );
     }
-    if (hasCode(err, "ENOENT")) {
+    if (hasErrorCode(err, "ENOENT")) {
       throw new Error(`No such file: ${path}`);
     }
     throw err;
   }
-}
-
-function hasCode(err: unknown, code: string): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    err.code === code
-  );
 }

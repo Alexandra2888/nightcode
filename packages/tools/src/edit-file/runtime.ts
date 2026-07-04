@@ -1,6 +1,7 @@
 import { readFile as fsReadFile, writeFile as fsWriteFile } from "node:fs/promises";
 import type { ToolInput } from "../index.ts";
 import { resolveWithinWorkspace } from "../resolve-within-workspace.ts";
+import { hasErrorCode } from "../errno.ts";
 
 /**
  * Replace an exact, unique substring in a file within the working directory. The
@@ -13,7 +14,18 @@ export async function editFile({
   newString,
 }: ToolInput<"edit_file">) {
   const abs = resolveWithinWorkspace(path);
-  const before = await fsReadFile(abs, "utf8");
+  let before: string;
+  try {
+    before = await fsReadFile(abs, "utf8");
+  } catch (err) {
+    if (hasErrorCode(err, "EISDIR")) {
+      throw new Error(`${path} is a directory, not a file.`);
+    }
+    if (hasErrorCode(err, "ENOENT")) {
+      throw new Error(`No such file: ${path}. Use write_file to create it.`);
+    }
+    throw err;
+  }
 
   const occurrences = before.split(oldString).length - 1;
   if (occurrences === 0) {
