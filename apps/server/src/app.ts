@@ -5,27 +5,33 @@ import { z } from "zod";
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
+  safeValidateUIMessages,
   streamText,
   toUIMessageStream,
-  type UIMessage,
 } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 
 // Body schema for /chat. The client (AI SDK's `useChat`) POSTs the full running
-// conversation as `messages` — an array of UI messages, each a `role` plus a
-// `parts` array. We validate the envelope here; the AI SDK's
-// `convertToModelMessages` handles the part-level shape when we hand it off.
-// `parts` stays `z.any()` because the SDK owns that structure. An empty or
-// malformed body is rejected with a 400 before the handler runs.
+// conversation as `messages` — an array of UI messages (each a `role` plus a
+// typed `parts` array). Rather than hand-rolling a Zod shape for the UI-message
+// structure (which the AI SDK owns and evolves), we do a cheap envelope check
+// (`non-empty array`) and then hand the array to the SDK's own
+// `safeValidateUIMessages` inside a `.transform`. Because `@hono/zod-validator`
+// parses with `safeParseAsync`, the async transform runs as part of validation:
+// a bad payload becomes a Zod issue (→ 400 before the handler), and on success
+// `c.req.valid('json')` is genuinely typed as `UIMessage[]` — no casting.
 const chatBody = z.object({
   messages: z
-    .array(
-      z.object({
-        role: z.enum(["system", "user", "assistant"]),
-        parts: z.array(z.any()),
-      }),
-    )
-    .min(1),
+    .array(z.unknown())
+    .min(1)
+    .transform(async (messages, ctx) => {
+      const result = await safeValidateUIMessages({ messages });
+      if (!result.success) {
+        ctx.addIssue({ code: "custom", message: result.error.message });
+        return z.NEVER;
+      }
+      return result.data;
+    }),
 });
 
 const app = new Hono()
@@ -49,7 +55,7 @@ const app = new Hono()
     const { messages } = c.req.valid("json");
     const result = streamText({
       model: anthropic("claude-haiku-4-5"),
-      messages: await convertToModelMessages(messages as UIMessage[]),
+      messages: await convertToModelMessages(messages),
     });
     return createUIMessageStreamResponse({
       stream: toUIMessageStream({ stream: result.stream }),
