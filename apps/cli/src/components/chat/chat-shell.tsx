@@ -1,5 +1,6 @@
 import { TextAttributes } from "@opentui/core";
-import type { UIMessage, ChatStatus } from "ai";
+import type { ChatStatus } from "ai";
+import type { ChatUIMessage } from "server/agent";
 import type { PendingApproval } from "../../screens/chat-screen.tsx";
 import { warnColor } from "../../lib/theme.ts";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
@@ -13,7 +14,7 @@ function oneLine(s: string, max = 200): string {
 }
 
 type ChatShellProps = {
-  messages: UIMessage[];
+  messages: ChatUIMessage[];
   status: ChatStatus;
   error?: Error;
   pendingApproval: PendingApproval | null;

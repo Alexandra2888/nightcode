@@ -5,7 +5,8 @@
   "type": "module",
   "module": "src/index.ts",
   "exports": {
-    "./app": "./src/app.ts"
+    "./app": "./src/app.ts",
+    "./agent": "./src/agent.ts"
   },
   "scripts": {
     "dev": "bun --watch run src/index.ts",

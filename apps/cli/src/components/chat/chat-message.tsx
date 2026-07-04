@@ -1,14 +1,15 @@
 import { TextAttributes } from "@opentui/core";
 import { isToolUIPart, getToolName } from "ai";
-import type { UIMessage, ToolUIPart } from "ai";
-import { toolSchemas } from "nightcode-tools";
+import type { ToolUIPart } from "ai";
+import { toolSchemas, type ToolName } from "nightcode-tools";
+import type { ChatUIMessage } from "server/agent";
 import { errorColor } from "../../lib/theme.ts";
 
-type MessagePart = UIMessage["parts"][number];
+type MessagePart = ChatUIMessage["parts"][number];
 
 // A row's display kind: the SDK's three message roles plus a synthetic "error"
-// for the inline stream-error entry (error is NOT a `UIMessage["role"]`).
-type MessageKind = UIMessage["role"] | "error";
+// for the inline stream-error entry (error is NOT a `ChatUIMessage["role"]`).
+type MessageKind = ChatUIMessage["role"] | "error";
 
 // The tool-invocation state union, derived straight from the SDK's `ToolUIPart`
 // (there is no exported alias). Keying the label maps below off these SDK unions
@@ -34,11 +35,8 @@ const toolStateLabels: Record<ToolState, string> = {
 };
 
 /** Whether a tool is one the user must confirm before it runs (write/edit/bash). */
-function awaitingApproval(toolName: string): boolean {
-  const schema = (
-    toolSchemas as Record<string, { needsApproval: boolean } | undefined>
-  )[toolName];
-  return schema?.needsApproval ?? false;
+function awaitingApproval(toolName: ToolName): boolean {
+  return toolSchemas[toolName].needsApproval;
 }
 
 /** DIM glyph label above every row — one per message kind. */
@@ -68,7 +66,8 @@ function Part({ part }: { part: MessagePart }) {
   // One compact renderer for all seven tool-invocation states. `isToolUIPart`
   // narrows both static (`tool-*`) and dynamic (`dynamic-tool`) parts.
   if (isToolUIPart(part)) {
-    const name = getToolName(part);
+    // These are our agent's tool parts, so the name is a `ToolName`.
+    const name = getToolName(part) as ToolName;
     if (part.state === "output-error") {
       return (
         <text fg={errorColor}>
@@ -93,7 +92,7 @@ function Part({ part }: { part: MessagePart }) {
 }
 
 /** Renders a single conversation message: role glyph + its parts, stacked. */
-export function ChatMessage({ message }: { message: UIMessage }) {
+export function ChatMessage({ message }: { message: ChatUIMessage }) {
   return (
     <box flexDirection="column">
       <RoleLabel kind={message.role} />

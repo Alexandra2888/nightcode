@@ -54,6 +54,24 @@ package is discovered automatically once its folder exists.
 - Reach for raw `fetch` only for a genuinely non-RPC target (a third-party URL);
   anything hitting our own server goes through the `client`.
 
+### The coding agent (`apps/server` ↔ `apps/cli`)
+
+- **Tool execution lives on the CLI; the server never touches the filesystem.**
+  Tool *schemas* are shared via `packages/tools` (`nightcode-tools`); the server
+  declares them as **execute-less** `tool()`s, so the agent loop stops at each
+  tool call and forwards it to the CLI, which runs it against the user's working
+  directory (`runTool` from `nightcode-tools/runtime`) and resubmits. Approval
+  for mutating tools (write/edit/bash) is therefore a CLI concern too — the CLI
+  withholds the tool result until the user confirms (no server-side
+  `toolApproval`; see the doc comment in `apps/server/src/agent.ts`).
+- The agent config is a reusable module-level **`ToolLoopAgent`** in
+  `apps/server/src/agent.ts` (`chatAgent`), run by the chat route via
+  `createAgentUIStreamResponse`. Its `InferAgentUIMessage` type — exported as
+  `ChatUIMessage` and imported by the CLI via the **`server/agent`** subpath —
+  types `useChat<ChatUIMessage>` end-to-end, so `onToolCall`'s `toolCall.toolName`
+  is the `ToolName` union (with per-tool typed inputs), not `string`. Adding or
+  removing a tool surfaces as a CLI type error.
+
 ### Server request validation (`apps/server`)
 
 - **Prefer Hono's zod validator (`@hono/zod-validator`). Read validated typed

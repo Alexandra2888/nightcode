@@ -1,6 +1,6 @@
 import { test, expect, afterEach } from "bun:test";
 import { testRender } from "@opentui/react/test-utils";
-import type { UIMessage } from "ai";
+import type { ChatUIMessage } from "server/agent";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 
 // These exercise the message part-type branches that the text-only /chat
@@ -20,7 +20,7 @@ async function frameFor(node: React.ReactNode) {
 }
 
 test("renders a user text message with its role label", async () => {
-  const message: UIMessage = {
+  const message: ChatUIMessage = {
     id: "m1",
     role: "user",
     parts: [{ type: "text", text: "build me a login screen" }],
@@ -31,7 +31,7 @@ test("renders a user text message with its role label", async () => {
 });
 
 test("renders reasoning and text parts of an assistant message", async () => {
-  const message: UIMessage = {
+  const message: ChatUIMessage = {
     id: "m2",
     role: "assistant",
     parts: [
@@ -46,40 +46,40 @@ test("renders reasoning and text parts of an assistant message", async () => {
 });
 
 test("renders a completed tool invocation with its name and status", async () => {
-  const message: UIMessage = {
+  const message: ChatUIMessage = {
     id: "m3",
     role: "assistant",
     parts: [
       {
-        type: "tool-search",
+        type: "tool-grep",
         toolCallId: "t1",
         state: "output-available",
-        input: { query: "auth" },
+        input: { pattern: "auth", path: "." },
         output: { hits: 3 },
       },
     ],
   };
   const frame = await frameFor(<ChatMessage message={message} />);
-  expect(frame).toContain("search");
+  expect(frame).toContain("grep");
   expect(frame).toContain("done");
 });
 
 test("renders a failed tool invocation with its error text", async () => {
-  const message: UIMessage = {
+  const message: ChatUIMessage = {
     id: "m4",
     role: "assistant",
     parts: [
       {
-        type: "tool-search",
+        type: "tool-grep",
         toolCallId: "t2",
         state: "output-error",
-        input: { query: "auth" },
+        input: { pattern: "auth", path: "." },
         errorText: "network exploded",
       },
     ],
   };
   const frame = await frameFor(<ChatMessage message={message} />);
-  expect(frame).toContain("search");
+  expect(frame).toContain("grep");
   expect(frame).toContain("network exploded");
 });
 
