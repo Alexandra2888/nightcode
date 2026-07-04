@@ -2,7 +2,7 @@ import { useKeyboard, useRenderer } from "@opentui/react";
 import { useNavigate } from "react-router";
 import { TextAttributes } from "@opentui/core";
 import { AsciiArt } from "../components/ascii-art.tsx";
-import { PromptInput } from "../components/prompt-input.tsx";
+import { ChatTextArea } from "../components/chat/chat-text-area.tsx";
 
 export function HomeScreen() {
   const renderer = useRenderer();
@@ -28,7 +28,12 @@ export function HomeScreen() {
       gap={1}
     >
       <AsciiArt />
-      <PromptInput onSubmit={handleSubmit} />
+      <box width={60}>
+        <ChatTextArea
+          placeholder="Type a screen, then Enter…"
+          onSubmit={handleSubmit}
+        />
+      </box>
       <text attributes={TextAttributes.DIM}>
         enter to go · esc to exit
       </text>
