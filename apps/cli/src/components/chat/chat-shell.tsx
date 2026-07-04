@@ -1,9 +1,16 @@
 import { TextAttributes } from "@opentui/core";
 import type { UIMessage, ChatStatus } from "ai";
 import type { PendingApproval } from "../../screens/chat-screen.tsx";
-import { errorColor } from "../../lib/theme.ts";
+import { warnColor } from "../../lib/theme.ts";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 import { ChatTextArea } from "./chat-text-area.tsx";
+
+/** Collapse to a single line and cap the length so a long/multi-line command
+ *  can't garble the prompt box. */
+function oneLine(s: string, max = 200): string {
+  const flat = s.replace(/\s+/g, " ").trim();
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
 
 type ChatShellProps = {
   messages: UIMessage[];
@@ -51,15 +58,22 @@ export function ChatShell({
       </scrollbox>
 
       {pendingApproval ? (
-        <box flexDirection="column">
-          <text fg={errorColor}>
-            ⚒ {pendingApproval.toolName}
-            {pendingApproval.detail ? ` → ${pendingApproval.detail}` : ""} —
-            approve?
-          </text>
-          <text attributes={TextAttributes.DIM}>
-            y approve · n deny · esc to go back
-          </text>
+        <box
+          border
+          borderStyle="rounded"
+          borderColor={warnColor}
+          title=" approval required "
+          padding={1}
+          flexDirection="column"
+          flexShrink={0}
+        >
+          <text fg={warnColor}>{`⚒  ${pendingApproval.toolName}`}</text>
+          {pendingApproval.detail ? (
+            <text attributes={TextAttributes.DIM}>
+              {oneLine(pendingApproval.detail)}
+            </text>
+          ) : null}
+          <text>{"[y] approve     [n] deny     esc to go back"}</text>
         </box>
       ) : (
         <>

@@ -3,3 +3,6 @@
 
 /** Foreground for error text (stream failures, tool errors, bad paths). */
 export const errorColor = "#f87171";
+
+/** Accent for actions that need the user's attention (the approval prompt). */
+export const warnColor = "#fbbf24";
