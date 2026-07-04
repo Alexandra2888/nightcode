@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { app } from "./index.ts";
+import { app } from "./app.ts";
 
 test("GET / returns service status", async () => {
   const res = await app.request("/");

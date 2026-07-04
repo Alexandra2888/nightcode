@@ -1,5 +1,5 @@
 import { hc } from "hono/client";
-import type { AppType } from "server";
+import type { AppType } from "server/app";
 
 /** Base URL of the nightcode Hono server (see apps/server). */
 const baseUrl = process.env.SERVER_URL ?? "http://localhost:3001";

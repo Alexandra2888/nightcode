@@ -16,10 +16,10 @@
     "@opentui/react": "latest",
     "hono": "latest",
     "react": ">=19.0.0",
-    "react-router": "^8.1.0",
-    "server": "workspace:*"
+    "react-router": "^8.1.0"
   },
   "devDependencies": {
-    "@types/react": ">=19.0.0"
+    "@types/react": ">=19.0.0",
+    "server": "workspace:*"
   }
 }

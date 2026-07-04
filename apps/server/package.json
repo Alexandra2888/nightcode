@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "module": "src/index.ts",
-  "exports": "./src/index.ts",
+  "exports": {
+    "./app": "./src/app.ts"
+  },
   "scripts": {
     "dev": "bun --watch run src/index.ts",
     "start": "bun run src/index.ts",

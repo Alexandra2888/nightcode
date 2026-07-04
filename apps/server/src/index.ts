@@ -1,15 +1,4 @@
-import { Hono } from "hono";
-import { logger } from "hono/logger";
-
-const app = new Hono()
-  .use(logger())
-  .get("/", (c) => c.json({ name: "nightcode", status: "ok" }))
-  .get("/health", (c) => c.json({ status: "healthy", uptime: process.uptime() }))
-  .get("/hello/:name", (c) => c.json({ message: `Hello, ${c.req.param("name")}!` }));
-
-// Export the app + route type so tests and a future Hono RPC client can share types.
-export { app };
-export type AppType = typeof app;
+import { app } from "./app.ts";
 
 // Default to 3001 so we don't collide with a Next.js dev server on 3000.
 const port = Number(process.env.PORT ?? 3001);
