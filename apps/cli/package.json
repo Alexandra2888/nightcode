@@ -12,6 +12,7 @@
     "build": "bun build src/index.tsx --outdir dist --target bun --external '@opentui/*'"
   },
   "dependencies": {
+    "@ai-sdk/react": "^4.0.16",
     "@opentui/core": "latest",
     "@opentui/react": "latest",
     "hono": "latest",

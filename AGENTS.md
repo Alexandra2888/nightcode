@@ -54,6 +54,15 @@ package is discovered automatically once its folder exists.
 - Reach for raw `fetch` only for a genuinely non-RPC target (a third-party URL);
   anything hitting our own server goes through the `client`.
 
+### Server request validation (`apps/server`)
+
+- **Prefer Hono's zod validator (`@hono/zod-validator`). Read validated typed
+  input via `c.req.valid('json')`.** Register `zValidator('json', schema)` (or
+  `'query'`/`'param'`/etc.) as route middleware and read the parsed, typed result
+  with `c.req.valid(...)` — never hand-parse with `await c.req.json()` + manual
+  casts/guards. The validator rejects malformed bodies with a 400 before the
+  handler runs, and the inferred types flow through `AppType` to the RPC client.
+
 ### OpenTUI gotchas (`apps/cli`)
 
 - **`<textarea>` is uncontrolled** — it owns its edit buffer. There is no

@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.8",
+    "@hono/zod-validator": "^0.8.0",
     "ai": "^7.0.15",
-    "hono": "latest"
+    "hono": "latest",
+    "zod": "^4.4.3"
   }
 }
