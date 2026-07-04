@@ -26,7 +26,7 @@ test("renders a user text message with its role label", async () => {
     parts: [{ type: "text", text: "build me a login screen" }],
   };
   const frame = await frameFor(<ChatMessage message={message} />);
-  expect(frame).toContain("you");
+  expect(frame).toContain(">"); // user role glyph
   expect(frame).toContain("build me a login screen");
 });
 
@@ -40,7 +40,7 @@ test("renders reasoning and text parts of an assistant message", async () => {
     ],
   };
   const frame = await frameFor(<ChatMessage message={message} />);
-  expect(frame).toContain("assistant");
+  expect(frame).toContain("◇"); // assistant role glyph
   expect(frame).toContain("the user wants auth");
   expect(frame).toContain("here is your login screen");
 });
@@ -85,6 +85,6 @@ test("renders a failed tool invocation with its error text", async () => {
 
 test("ErrorMessage renders an inline assistant error entry", async () => {
   const frame = await frameFor(<ErrorMessage text="Something went wrong." />);
-  expect(frame).toContain("assistant");
+  expect(frame).toContain("✗"); // error kind glyph
   expect(frame).toContain("Something went wrong.");
 });

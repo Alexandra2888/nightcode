@@ -1,17 +1,40 @@
 import { TextAttributes } from "@opentui/core";
 import { isToolUIPart, getToolName } from "ai";
-import type { UIMessage } from "ai";
+import type { UIMessage, ToolUIPart } from "ai";
 import { errorColor } from "../../lib/theme.ts";
 
 type MessagePart = UIMessage["parts"][number];
 
-/** DIM label above every message body — "you" / "assistant". */
-function RoleLabel({ role }: { role: UIMessage["role"] }) {
-  return (
-    <text attributes={TextAttributes.DIM}>
-      {role === "user" ? "you" : "assistant"}
-    </text>
-  );
+// A row's display kind: the SDK's three message roles plus a synthetic "error"
+// for the inline stream-error entry (error is NOT a `UIMessage["role"]`).
+type MessageKind = UIMessage["role"] | "error";
+
+// The tool-invocation state union, derived straight from the SDK's `ToolUIPart`
+// (there is no exported alias). Keying the label maps below off these SDK unions
+// makes them exhaustive: TypeScript forces an entry for every role/state and
+// rejects any key that isn't a real one — a renamed or typo'd state won't compile.
+type ToolState = ToolUIPart["state"];
+
+const roleLabels: Record<MessageKind, string> = {
+  user: ">",
+  assistant: "◇",
+  system: "!",
+  error: "✗",
+};
+
+const toolStateLabels: Record<ToolState, string> = {
+  "input-streaming": "running…",
+  "input-available": "running…",
+  "approval-requested": "awaiting approval",
+  "approval-responded": "awaiting approval",
+  "output-available": "done",
+  "output-error": "error",
+  "output-denied": "denied",
+};
+
+/** DIM glyph label above every row — one per message kind. */
+function RoleLabel({ kind }: { kind: MessageKind }) {
+  return <text attributes={TextAttributes.DIM}>{roleLabels[kind]}</text>;
 }
 
 /**
@@ -44,18 +67,9 @@ function Part({ part }: { part: MessagePart }) {
         </text>
       );
     }
-    const status =
-      part.state === "output-available"
-        ? "done"
-        : part.state === "output-denied"
-          ? "denied"
-          : part.state === "approval-requested" ||
-              part.state === "approval-responded"
-            ? "awaiting approval"
-            : "running…";
     return (
       <text attributes={TextAttributes.DIM}>
-        ⚒ {name} · {status}
+        ⚒ {name} · {toolStateLabels[part.state]}
       </text>
     );
   }
@@ -63,11 +77,11 @@ function Part({ part }: { part: MessagePart }) {
   return null;
 }
 
-/** Renders a single conversation message: role label + its parts, stacked. */
+/** Renders a single conversation message: role glyph + its parts, stacked. */
 export function ChatMessage({ message }: { message: UIMessage }) {
   return (
     <box flexDirection="column">
-      <RoleLabel role={message.role} />
+      <RoleLabel kind={message.role} />
       <box maxWidth={72} flexDirection="column">
         {message.parts.map((part, i) => (
           <Part key={i} part={part} />
@@ -85,7 +99,7 @@ export function ChatMessage({ message }: { message: UIMessage }) {
 export function ErrorMessage({ text }: { text: string }) {
   return (
     <box flexDirection="column">
-      <RoleLabel role="assistant" />
+      <RoleLabel kind="error" />
       <box maxWidth={72}>
         <text fg={errorColor}>{text}</text>
       </box>
