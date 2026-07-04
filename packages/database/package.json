@@ -9,7 +9,7 @@
   },
   "scripts": {
     "generate": "bunx --bun prisma generate",
-    "migrate": "bunx --bun prisma migrate dev",
+    "push": "bunx --bun prisma db push",
     "studio": "bunx --bun prisma studio"
   },
   "dependencies": {
