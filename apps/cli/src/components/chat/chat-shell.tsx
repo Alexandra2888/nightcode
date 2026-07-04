@@ -21,7 +21,12 @@ export function ChatShell({ messages, status, error, onSend }: ChatShellProps) {
 
   return (
     <box flexDirection="column" flexGrow={1} padding={1} gap={1}>
-      <box flexDirection="column" flexGrow={1} gap={1}>
+      <scrollbox
+        flexGrow={1}
+        stickyScroll
+        stickyStart="bottom"
+        contentOptions={{ gap: 1 }}
+      >
         {messages.map((message) => (
           <ChatMessage key={message.id} message={message} />
         ))}
@@ -29,7 +34,7 @@ export function ChatShell({ messages, status, error, onSend }: ChatShellProps) {
           <text attributes={TextAttributes.DIM}>assistant is thinking…</text>
         )}
         {error && <ErrorMessage text="Something went wrong." />}
-      </box>
+      </scrollbox>
 
       <ChatTextArea
         placeholder={busy ? "Waiting for reply…" : "Reply, then Enter…"}
