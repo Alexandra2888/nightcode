@@ -9,12 +9,12 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readFile } from "./read-file.ts";
-import { listDirectory } from "./list-directory.ts";
-import { writeFile } from "./write-file.ts";
-import { editFile } from "./edit-file.ts";
-import { grep } from "./grep.ts";
-import { bash } from "./bash.ts";
+import { readFile } from "./read-file/runtime.ts";
+import { listDirectory } from "./list-directory/runtime.ts";
+import { writeFile } from "./write-file/runtime.ts";
+import { editFile } from "./edit-file/runtime.ts";
+import { grep } from "./grep/runtime.ts";
+import { bash } from "./bash/runtime.ts";
 
 // Executors run against the real filesystem through the cwd guardrail, so each
 // test operates inside a fresh temp working directory.

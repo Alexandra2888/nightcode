@@ -1,6 +1,6 @@
 import { readFile as fsReadFile, writeFile as fsWriteFile } from "node:fs/promises";
-import type { ToolInput } from "nightcode-tools";
-import { resolveWithinWorkspace } from "./resolve-within-workspace.ts";
+import type { ToolInput } from "../index.ts";
+import { resolveWithinWorkspace } from "../resolve-within-workspace.ts";
 
 /**
  * Replace an exact, unique substring in a file within the working directory. The

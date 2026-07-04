@@ -1,4 +1,4 @@
-import type { ToolInput } from "nightcode-tools";
+import type { ToolInput } from "../index.ts";
 
 const MAX_OUTPUT = 30_000;
 

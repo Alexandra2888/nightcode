@@ -13,7 +13,7 @@ import { useKeyboard } from "@opentui/react";
 import { useNavigate, useLocation, useParams } from "react-router";
 import { client } from "../lib/client.ts";
 import { chatNavState } from "../lib/nav-state.ts";
-import { runTool } from "../tools/run-tool.ts";
+import { runTool } from "nightcode-tools/runtime";
 import { ChatShell } from "../components/chat/chat-shell.tsx";
 
 /** A mutating tool call awaiting the user's approve/deny decision in the TUI. */
