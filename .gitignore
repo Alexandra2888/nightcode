@@ -6,3 +6,6 @@ dist/
 .env.*
 !.env.example
 *.tsbuildinfo
+.cursorrules
+
+/apps/server/.env
