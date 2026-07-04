@@ -1,5 +1,7 @@
 import { TextAttributes } from "@opentui/core";
 import type { UIMessage, ChatStatus } from "ai";
+import type { PendingApproval } from "../../screens/chat-screen.tsx";
+import { errorColor } from "../../lib/theme.ts";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 import { ChatTextArea } from "./chat-text-area.tsx";
 
@@ -7,16 +9,28 @@ type ChatShellProps = {
   messages: UIMessage[];
   status: ChatStatus;
   error?: Error;
+  pendingApproval: PendingApproval | null;
   onSend: (text: string) => void;
 };
 
 /**
  * Presentation container for the chat body: the transcript, a "thinking"
- * indicator, an inline error entry, the reply box, and a hint. Purely
- * prop-driven and stateless — all hooks (`useChat`, routing, keyboard) stay in
- * the chat screen. `busy` is derived here so `ChatTextArea` stays generic.
+ * indicator, an inline error entry, and — depending on state — either the reply
+ * box or a file-change approval prompt, plus a hint. Purely prop-driven and
+ * stateless; all hooks (`useChat`, routing, keyboard) stay in the chat screen.
+ * `busy` is derived here so `ChatTextArea` stays generic.
+ *
+ * When a mutating tool call is awaiting approval we swap the reply box for the
+ * approval prompt, so the y/n keystrokes (handled in the screen) can't leak into
+ * the uncontrolled textarea buffer.
  */
-export function ChatShell({ messages, status, error, onSend }: ChatShellProps) {
+export function ChatShell({
+  messages,
+  status,
+  error,
+  pendingApproval,
+  onSend,
+}: ChatShellProps) {
   const busy = status === "submitted" || status === "streaming";
 
   return (
@@ -36,11 +50,28 @@ export function ChatShell({ messages, status, error, onSend }: ChatShellProps) {
         {error && <ErrorMessage text="Something went wrong." />}
       </scrollbox>
 
-      <ChatTextArea
-        placeholder={busy ? "Waiting for reply…" : "Reply, then Enter…"}
-        onSubmit={onSend}
-      />
-      <text attributes={TextAttributes.DIM}>enter to send · esc to go back</text>
+      {pendingApproval ? (
+        <box flexDirection="column">
+          <text fg={errorColor}>
+            ⚒ {pendingApproval.toolName}
+            {pendingApproval.detail ? ` → ${pendingApproval.detail}` : ""} —
+            approve?
+          </text>
+          <text attributes={TextAttributes.DIM}>
+            y approve · n deny · esc to go back
+          </text>
+        </box>
+      ) : (
+        <>
+          <ChatTextArea
+            placeholder={busy ? "Waiting for reply…" : "Reply, then Enter…"}
+            onSubmit={onSend}
+          />
+          <text attributes={TextAttributes.DIM}>
+            enter to send · esc to go back
+          </text>
+        </>
+      )}
     </box>
   );
 }

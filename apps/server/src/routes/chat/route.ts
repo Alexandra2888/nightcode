@@ -8,33 +8,52 @@ import {
   tool,
 } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
-import { z } from "zod";
 import { prisma } from "nightcode-database/client";
 import type { Prisma } from "nightcode-database";
+import {
+  toolSchemas,
+  readFile,
+  listDirectory,
+  writeFile,
+  editFile,
+  grep,
+  bash,
+} from "nightcode-tools";
 import { chatBody, chatParam } from "./schema.ts";
 
 /**
- * A single fake tool so the client can exercise reasoning + tool-invocation
- * rendering end-to-end. `get_weather` always succeeds with a random condition —
- * the error / denied / approval tool states are covered by the CLI's
- * `chat-message.test.tsx`, not reachable from a happy-path server tool. Kept
- * inline (not a shared module) because `safeValidateUIMessages` in `schema.ts`
- * validates tool parts structurally without needing the schema, so multi-turn
- * round-trips fine.
+ * The coding agent's tools, built from the shared `nightcode-tools` schemas.
+ *
+ * These are defined WITHOUT an `execute` function on purpose: the server is
+ * hosted remotely and has no filesystem, so each tool call is forwarded to the
+ * CLI, which runs it against the user's working directory (see the CLI's
+ * `onToolCall` + `apps/cli/src/tools/`). The server only decides which tools
+ * exist and — via `toolApproval` below — which need the user's OK first.
+ *
+ * Built explicitly (rather than mapping over `toolSchemas`) so each `tool()`
+ * receives a single concrete Zod schema; mapping would hand it a union of the
+ * six schemas, which it can't infer a tool-input type from.
  */
 const tools = {
-  get_weather: tool({
-    description: "Show the weather in a given city to the user.",
-    inputSchema: z.object({ city: z.string() }),
-    execute: async ({ city }) => {
-      const conditions = ["sunny", "cloudy", "rainy", "snowy", "windy"];
-      return {
-        city,
-        condition: conditions[Math.floor(Math.random() * conditions.length)],
-      };
-    },
-  }),
+  read_file: tool({ description: readFile.description, inputSchema: readFile.inputSchema }),
+  list_directory: tool({ description: listDirectory.description, inputSchema: listDirectory.inputSchema }),
+  write_file: tool({ description: writeFile.description, inputSchema: writeFile.inputSchema }),
+  edit_file: tool({ description: editFile.description, inputSchema: editFile.inputSchema }),
+  grep: tool({ description: grep.description, inputSchema: grep.inputSchema }),
+  bash: tool({ description: bash.description, inputSchema: bash.inputSchema }),
 };
+
+/**
+ * Approval policy, derived from each tool's `needsApproval`. Mutating tools
+ * (`write_file`, `edit_file`, `bash`) get `user-approval`, so the SDK emits a
+ * `tool-approval-request` — even though the tool has no `execute` here — and the
+ * call is only forwarded to the CLI after the user approves it in the TUI.
+ */
+const toolApproval = Object.fromEntries(
+  Object.entries(toolSchemas)
+    .filter(([, s]) => s.needsApproval)
+    .map(([name]) => [name, "user-approval" as const]),
+);
 
 /**
  * `/chat` route group — and the template for every future endpoint / route
@@ -97,18 +116,25 @@ export const chatRoute = new Hono().post(
     const result = streamText({
       model: anthropic("claude-haiku-4-5"),
       system:
-        "You are a helpful assistant with access to tools. Use them when " +
-        "relevant to answer the user's question.",
+        "You are a coding agent operating in the user's current working " +
+        "directory. You can read, list, and search (grep) files, and — with " +
+        "the user's approval — write and edit files and run shell commands " +
+        "(bash), using the provided tools. All paths are relative to the " +
+        "working directory. Read a file before editing it, prefer edit_file " +
+        "over write_file when changing part of an existing file, and prefer " +
+        "the dedicated file tools over bash for reading/editing so changes " +
+        "stay reviewable. Explain what you did after making changes.",
       tools,
-      // Let the loop run past the tool call so the model produces a final answer
-      // from the tool result (tool call → execute → text). Five steps suits this
-      // one-tool demo; real multi-tool agents (read_file/edit_file/…) need more.
-      stopWhen: stepCountIs(5),
+      toolApproval,
+      // Multi-tool agent loops (read → edit → read → …) need room to run: each
+      // tool call + its result is a step, so 20 leaves headroom for a realistic
+      // task before the loop is cut off.
+      stopWhen: stepCountIs(20),
       // Extended thinking so the stream carries reasoning parts. NB: `adaptive`
       // thinking is rejected by claude-haiku-4-5 ("not supported on this model")
       // — it needs Opus 4.7+ / a newer model — so we use `enabled` with an
       // explicit budget, which works on Haiku and yields the same reasoning parts.
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
       providerOptions: {
         anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
       },
