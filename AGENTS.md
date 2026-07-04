@@ -41,6 +41,19 @@ package is discovered automatically once its folder exists.
   in `app.tsx`, and navigate to it with `useNavigate()` bound to a key via
   `useKeyboard` (e.g. `navigate("/name")`). Go back with `navigate(-1)`.
 
+### Server ↔ CLI communication
+
+- **Always use Hono RPC for requests between the server and CLI whenever
+  possible** — never hand-roll `fetch()` with string URLs. The shared client
+  lives at `apps/cli/src/lib/client.ts` (`hc<AppType>` over `server/app`'s
+  type-only `AppType`). Call routes through it: `client.health.$get()`,
+  `client.generate.$get()`, etc. This keeps requests and responses fully typed
+  end-to-end, so adding/removing a server field surfaces as a CLI type error.
+- The RPC feature only works because server routes are **chained** (`AppType`
+  inference) — keep them chained when you add routes.
+- Reach for raw `fetch` only for a genuinely non-RPC target (a third-party URL);
+  anything hitting our own server goes through the `client`.
+
 ### OpenTUI gotchas (`apps/cli`)
 
 - **`<textarea>` is uncontrolled** — it owns its edit buffer. There is no
@@ -89,5 +102,5 @@ Bun does not type-check — always run `bun run typecheck` separately.
 - **CLI build** marks `@opentui/*` external (`--external '@opentui/*'`); OpenTUI
   loads platform-specific native binaries at runtime, so they must not be
   bundled.
-- **Hono routes are chained** so `export type AppType` stays inferable for a
-  future RPC client. Keep them chained.
+- **Hono routes are chained** so `export type AppType` stays inferable for the
+  RPC client. Keep them chained (see "Server ↔ CLI communication").

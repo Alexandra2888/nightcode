@@ -31,7 +31,7 @@ export function HomeScreen() {
       <AsciiArt />
       <PromptInput onSubmit={handleSubmit} />
       <text attributes={TextAttributes.DIM}>
-        screens: settings · about — enter to go · esc to exit
+        screens: settings · about · llm — enter to go · esc to exit
       </text>
     </box>
   );
