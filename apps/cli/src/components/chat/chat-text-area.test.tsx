@@ -1,0 +1,92 @@
+import { test, expect, afterEach } from "bun:test";
+import { testRender } from "@opentui/react/test-utils";
+import { MemoryRouter, useLocation } from "react-router";
+import { ChatConfigProvider } from "../../lib/chat-config.tsx";
+import { ChatTextArea } from "./chat-text-area.tsx";
+
+// End-to-end palette behavior driven through real keystrokes: typing "/" opens
+// the palette, keywords filter it, Enter runs the highlighted command (here
+// `/new`, which navigates home), and Escape closes it without navigating.
+//
+// The palette opens via a React state update from the textarea's onContentChange,
+// so assertions use `waitForFrame` (polls until the frame settles) rather than a
+// single `flush` + capture, which can race the re-render/paint.
+//
+// `typeText` MUST be called with a nonzero per-key delay: the default writes all
+// bytes in one chunk, which the mock parser delivers without the per-keystroke
+// content-change/keypress events real typing produces (so the palette wouldn't
+// open). A small delay routes each key through the real parse path.
+const KEY_DELAY_MS = 5;
+
+let testSetup: Awaited<ReturnType<typeof testRender>>;
+
+afterEach(() => {
+  testSetup?.renderer.destroy();
+});
+
+/** Prints the router pathname so tests can assert navigation from a command. */
+function LocationProbe() {
+  const location = useLocation();
+  return <text>{`PATH:${location.pathname}`}</text>;
+}
+
+/** Mounts ChatTextArea with its real providers, anchored near the bottom so the
+ *  `bottom="100%"` palette floats on-screen above it (as it does in the app). */
+async function mountTextArea() {
+  testSetup = await testRender(
+    <MemoryRouter initialEntries={["/sessions/abc"]}>
+      <ChatConfigProvider>
+        <box height={24} flexDirection="column">
+          <LocationProbe />
+          <box flexGrow={1} />
+          <ChatTextArea onSubmit={() => {}} placeholder="type…" />
+        </box>
+      </ChatConfigProvider>
+    </MemoryRouter>,
+    { width: 80, height: 24, kittyKeyboard: true },
+  );
+  await testSetup.renderOnce();
+  return testSetup;
+}
+
+test("typing / opens the palette with all commands", async () => {
+  const { mockInput, waitForFrame } = await mountTextArea();
+  await mockInput.typeText("/", KEY_DELAY_MS);
+  const frame = await waitForFrame(
+    (f) => f.includes("/new") && f.includes("/exit"),
+  );
+  expect(frame).toContain("/new");
+  expect(frame).toContain("/exit");
+});
+
+test("a keyword filters the palette", async () => {
+  const { mockInput, waitForFrame } = await mountTextArea();
+  await mockInput.typeText("/ex", KEY_DELAY_MS);
+  const frame = await waitForFrame(
+    (f) => f.includes("/exit") && !f.includes("/new"),
+  );
+  expect(frame).toContain("/exit");
+  expect(frame).not.toContain("/new");
+});
+
+test("Enter runs the highlighted command (/new navigates home)", async () => {
+  const { mockInput, waitForFrame } = await mountTextArea();
+  await mockInput.typeText("/new", KEY_DELAY_MS);
+  await waitForFrame((f) => f.includes("/new")); // palette open
+  mockInput.pressEnter();
+  // /new → navigate("/"): the probe flips from /sessions/abc to /.
+  const frame = await waitForFrame((f) => !f.includes("PATH:/sessions/abc"));
+  expect(frame).toContain("PATH:/");
+  expect(frame).not.toContain("PATH:/sessions/abc");
+});
+
+test("Escape closes the palette without navigating", async () => {
+  const { mockInput, waitForFrame } = await mountTextArea();
+  await mockInput.typeText("/", KEY_DELAY_MS);
+  await waitForFrame((f) => f.includes("/exit")); // open
+
+  mockInput.pressEscape();
+  const frame = await waitForFrame((f) => !f.includes("/exit")); // closed
+  expect(frame).not.toContain("/exit");
+  expect(frame).toContain("PATH:/sessions/abc"); // did not navigate
+});

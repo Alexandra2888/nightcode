@@ -132,6 +132,21 @@ package is discovered automatically once its folder exists.
   Caveat: Shift+Enter is only distinguishable from Enter in terminals with the
   enhanced/kitty keyboard protocol (Ghostty, Kitty, WezTerm, recent iTerm2). In
   a basic terminal both send the same bytes, so Shift+Enter will submit too.
+- **Imperative handlers read a ref, not the state they mirror.** OpenTUI's
+  submit/key handlers fire imperatively and capture a stale closure of React
+  state (the value it had when the handler was created), so resolving "the
+  currently selected X" off a `useState` var can act on last render's value —
+  e.g. Enter fired the wrong slash command in the palette. Mirror the state in a
+  `useRef` (`selectedIndexRef.current = selectedIndex`) and read the ref inside
+  the handler. Same bug the textarea value hit (read `plainText`, not a state
+  copy). See `hooks/use-command-popover.ts` (`selectedIndexRef`/`filteredRef`).
+- **Key dispatch: global handlers run before the focused renderable's.** All
+  `useKeyboard` handlers fire first (in mount order — a child registers before
+  its ancestor screen), then the focused element's own key processing. So a
+  global `key.preventDefault()` cancels the textarea's default action (cursor
+  move / submit), and `key.stopPropagation()` from the earlier-registered child
+  handler stops a later global handler (e.g. the screen's Escape → go-back/quit).
+  The command palette relies on both: see `components/chat/chat-text-area.tsx`.
 
 ### React effects (`apps/cli`)
 

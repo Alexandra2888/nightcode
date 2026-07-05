@@ -2,9 +2,13 @@ import { useRef } from "react";
 import { TextAttributes, type TextareaRenderable } from "@opentui/core";
 import { useKeyboard } from "@opentui/react";
 import { modeByName } from "nightcode-ai/client";
+import type { ChatCommand } from "../../lib/chat-commands.ts";
 import { useChatConfig } from "../../lib/chat-config.tsx";
+import { useChatCommands } from "../../hooks/use-chat-commands.ts";
+import { useCommandPopover } from "../../hooks/use-command-popover.ts";
 import { modeColor } from "../../lib/theme.ts";
 import { Border } from "../border.tsx";
+import { CommandPopover } from "./command-popover.tsx";
 
 type ChatTextAreaProps = {
   placeholder?: string;
@@ -41,10 +45,57 @@ type ChatTextAreaProps = {
 export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps) {
   const ref = useRef<TextareaRenderable>(null);
   const { mode, cycle } = useChatConfig();
+  const { executeChatCommand } = useChatCommands();
+  const popover = useCommandPopover();
   const activeMode = modeByName(mode);
 
+  // Shared by Enter and mouse click: clear the buffer, close the palette, run it.
+  const runCommand = (command: ChatCommand) => {
+    ref.current?.setText("");
+    popover.close();
+    executeChatCommand(command.name);
+  };
+
+  // One global handler drives both mode-cycling and the palette. Global handlers
+  // dispatch BEFORE the focused textarea's own key processing, so `preventDefault`
+  // here stops the textarea acting on a key (cursor move / submit), and — because
+  // this component is a descendant of the screen, its listener registers first —
+  // `stopPropagation` beats the screen's Escape (go back / quit).
   useKeyboard((key) => {
-    // Tab cycles forward through all modes, Shift+Tab backward.
+    if (popover.open) {
+      switch (key.name) {
+        case "up":
+          popover.moveSelection(-1);
+          key.preventDefault();
+          return;
+        case "down":
+          popover.moveSelection(1);
+          key.preventDefault();
+          return;
+        case "return": {
+          // Run the highlighted command (resolved from a ref, so a fast Enter
+          // can't fire a stale selection), not the typed text.
+          const command = popover.resolveSelected();
+          key.preventDefault();
+          key.stopPropagation();
+          if (command) runCommand(command);
+          return;
+        }
+        case "escape":
+          popover.close();
+          key.preventDefault();
+          key.stopPropagation();
+          return;
+        case "tab":
+          // Don't cycle mode while the palette is open.
+          key.preventDefault();
+          key.stopPropagation();
+          return;
+        default:
+          return; // let typing/backspace fall through to the textarea
+      }
+    }
+    // Palette closed: Tab cycles forward through all modes, Shift+Tab backward.
     if (key.name === "tab") cycle(key.shift ? -1 : 1);
   });
 
@@ -52,27 +103,46 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
 
   return (
     <box flexDirection="column">
-      <Border color={barColor}>
-        <box flexDirection="column" paddingY={1} paddingRight={1}>
-          <textarea
-            ref={ref}
-            placeholder={placeholder}
-            height={3}
-            wrapMode="word"
-            focused
-            keyBindings={[
-              { name: "return", action: "submit" },
-              { name: "return", shift: true, action: "newline" },
-            ]}
-            onSubmit={() => {
-              const value = ref.current?.plainText ?? "";
-              ref.current?.setText("");
-              onSubmit(value);
-            }}
+      {/* Relative + visible so the absolutely-positioned palette floats above the
+          input instead of taking layout space or being clipped. */}
+      <box position="relative" overflow="visible">
+        {popover.open && (
+          <CommandPopover
+            commands={popover.filtered}
+            selectedIndex={popover.selectedIndex}
+            onHover={popover.select}
+            onRun={runCommand}
           />
-          <text fg={barColor}>{activeMode.label}</text>
-        </box>
-      </Border>
+        )}
+        <Border color={barColor}>
+          <box flexDirection="column" paddingY={1} paddingRight={1}>
+            <textarea
+              ref={ref}
+              placeholder={placeholder}
+              height={3}
+              wrapMode="word"
+              focused
+              keyBindings={[
+                { name: "return", action: "submit" },
+                { name: "return", shift: true, action: "newline" },
+              ]}
+              // Track the buffer live so the palette can open/filter as you type.
+              onContentChange={() => popover.onInput(ref.current?.plainText ?? "")}
+              onSubmit={() => {
+                const value = ref.current?.plainText ?? "";
+                ref.current?.setText("");
+                // Fallback for the race where the palette's open-state hasn't
+                // caught up (e.g. paste + Enter): a recognized command still runs
+                // instead of sending a message. When the palette is open, Enter is
+                // handled in the keyboard handler above and never reaches here.
+                if (executeChatCommand(value)) return;
+                onSubmit(value);
+              }}
+            />
+            <text fg={barColor}>{activeMode.label}</text>
+          </box>
+        </Border>
+      </box>
       <text attributes={TextAttributes.DIM}>
         {hint ? `tab to switch mode · ${hint}` : "tab to switch mode"}
       </text>
