@@ -11,6 +11,7 @@ import {
   handleCodingAgentToolCall,
   needsApproval,
   findPendingApproval,
+  messageMetadataSchema,
   type PendingApproval,
   type CodingAgentUIMessage,
 } from "nightcode-ai/client";
@@ -160,15 +161,21 @@ export function ChatScreen() {
       if (!res.ok || cancelled) return;
       const { messages: history } = await res.json();
       // History is untyped external input — validate it with the SDK's own
-      // validator rather than trusting the stored shape.
+      // validator rather than trusting the stored shape. `metadataSchema` is the
+      // same optional contract the server uses, so `metadata.mode` is typed and
+      // the two sites can't drift. On parse failure we fall back to `[]` (a fresh
+      // empty session parses to `[]` too), so hydration never throws.
       const parsed = await safeValidateUIMessages<CodingAgentUIMessage>({
         messages: history,
+        metadataSchema: messageMetadataSchema,
       });
       if (cancelled) return;
       const hydrated = parsed.success ? parsed.data : [];
       setMessages(hydrated);
       if (initialInput && hydrated.length === 0) {
-        sendMessage({ text: initialInput });
+        // Stamp the opening message with the mode it's sent in so its bar colors
+        // immediately (and persists) — same as replies below.
+        sendMessage({ text: initialInput, metadata: { mode: modeRef.current } });
       }
     }
     loadSession();
@@ -187,7 +194,10 @@ export function ChatScreen() {
       pendingApproval={pendingApproval}
       onSend={(text) => {
         const trimmed = text.trim();
-        if (trimmed) sendMessage({ text: trimmed });
+        // Attach the current mode so this user message's left bar reflects the
+        // mode it was sent in (not the live provider), immediately and after a
+        // reload. Persistence comes from the top-level `mode` body field.
+        if (trimmed) sendMessage({ text: trimmed, metadata: { mode: modeRef.current } });
       }}
     />
   );

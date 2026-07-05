@@ -22,6 +22,15 @@ enum Role {
   assistant
 }
 
+// The behaviour mode a turn ran in. Lowercase members mirror the `Role`
+// convention above and match the CLI's `ModeName` union (`nightcode-ai`), so the
+// generated `Mode` type re-exported from `nightcode-database` is the single
+// source of truth both sides `satisfies` against.
+enum Mode {
+  build
+  plan
+}
+
 model Session {
   id        String   @id @default(cuid())
   title     String?
@@ -41,6 +50,7 @@ model Message {
   role      Role
   parts     Json // UIMessage.parts, stored verbatim
   metadata  Json? // UIMessage.metadata (optional)
+  mode      Mode // the mode this turn was sent in — drives the message's left-bar color
   createdAt DateTime @default(now())
 
   @@index([sessionId])

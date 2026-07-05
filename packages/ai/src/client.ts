@@ -18,8 +18,8 @@ export type { CodingAgentUIMessage } from "./tools/toolset.ts";
 // it comes from the same `nightcode-ai/client` entry, alongside the tool-call
 // handler and approval helpers. These are the Zod-only mode helpers from the
 // shared entry — no AI SDK involved.
-export { DEFAULT_MODE, cycleMode, modeByName } from "./modes.ts";
-export type { ModeConfig, ModeName } from "./modes.ts";
+export { DEFAULT_MODE, cycleMode, modeByName, messageMetadataSchema } from "./modes.ts";
+export type { ModeConfig, ModeName, MessageMetadata } from "./modes.ts";
 
 /** A mutating tool call awaiting the user's approve/deny decision in the TUI. */
 export type PendingApproval = {

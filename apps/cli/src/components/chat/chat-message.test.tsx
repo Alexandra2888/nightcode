@@ -19,18 +19,23 @@ async function frameFor(node: React.ReactNode) {
   return testSetup.captureCharFrame();
 }
 
-test("renders a user text message with its role label", async () => {
+test("renders a user text message inside its mode bar", async () => {
+  // User turns carry the mode they were sent in as metadata; it drives the left
+  // bar's color. The bar is a background-painted column (no glyph), so we assert
+  // the content rather than a role glyph (glyphs were dropped in the redesign).
   const message: CodingAgentUIMessage = {
     id: "m1",
     role: "user",
+    metadata: { mode: "build" },
     parts: [{ type: "text", text: "build me a login screen" }],
   };
   const frame = await frameFor(<ChatMessage message={message} />);
-  expect(frame).toContain(">"); // user role glyph
   expect(frame).toContain("build me a login screen");
 });
 
 test("renders reasoning and text parts of an assistant message", async () => {
+  // Assistant turns read quiet: no bar, no role glyph. Reasoning gets the muted
+  // bordered treatment; plain text is indented. Both stay legible.
   const message: CodingAgentUIMessage = {
     id: "m2",
     role: "assistant",
@@ -40,7 +45,6 @@ test("renders reasoning and text parts of an assistant message", async () => {
     ],
   };
   const frame = await frameFor(<ChatMessage message={message} />);
-  expect(frame).toContain("◇"); // assistant role glyph
   expect(frame).toContain("the user wants auth");
   expect(frame).toContain("here is your login screen");
 });

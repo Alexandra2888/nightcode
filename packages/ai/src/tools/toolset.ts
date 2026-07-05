@@ -24,6 +24,7 @@
 import { tool } from "ai";
 import type { InferUITools, Tool, UIMessage } from "ai";
 import type { ToolName } from "../types.ts";
+import type { MessageMetadata } from "../modes.ts";
 import { toolSchemas } from "./schemas.ts";
 
 export const codingTools = {
@@ -62,13 +63,14 @@ export const codingTools = {
 /**
  * End-to-end UI message type, derived from the tool set (not the agent) so the
  * client can import it without pulling in the server entry. Its shape mirrors
- * `InferAgentUIMessage`: `unknown` metadata, no data parts, and the tool
- * input/output types inferred from `codingTools`. The CLI's `useChat` consumes
- * it so tool names narrow to the `ToolName` union with per-tool typed inputs and
- * outputs instead of collapsing to `string`/`unknown`.
+ * `InferAgentUIMessage`: `MessageMetadata` metadata (the turn's mode — see
+ * `messageMetadataSchema`), no data parts, and the tool input/output types
+ * inferred from `codingTools`. The CLI's `useChat` consumes it so tool names
+ * narrow to the `ToolName` union with per-tool typed inputs and outputs instead
+ * of collapsing to `string`/`unknown`, and `message.metadata?.mode` is typed.
  */
 export type CodingAgentUIMessage = UIMessage<
-  unknown,
+  MessageMetadata,
   never,
   InferUITools<typeof codingTools>
 >;

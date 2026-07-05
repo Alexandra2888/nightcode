@@ -172,6 +172,15 @@ Bun does not type-check — always run `bun run typecheck` separately.
 
 ## Conventions and gotchas
 
+- **A task is not done while `bun run typecheck` reports errors.** Bun does not
+  type-check on its own, so run it before considering any change complete — it's
+  the guardrail that catches mis-named OpenTUI props, enum/`satisfies` drift, and
+  stale types. Green typecheck is a hard requirement, not a nicety.
+- **Answer OpenTUI questions from the OpenTUI skill, not `node_modules`.** For any
+  OpenTUI prop/layout/component question (valid prop names like `borderColor` vs
+  `bg`, `paddingLeft` vs `padding-left`, per-side borders, `ascii-font` `color`,
+  full-screen background), consult the OpenTUI skill first; fall back to
+  `node_modules` only if the skill doesn't cover it.
 - **TypeScript config**: `tsconfig.base.json` holds the shared compiler options;
   each package extends it. The root `tsconfig.json` is the solution file
   (project `references`), not a base to extend.

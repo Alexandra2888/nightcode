@@ -38,13 +38,20 @@ export const sessionsRoute = new Hono()
       orderBy: { createdAt: "asc" },
     });
     // Reconstruct the UIMessage shape the CLI hydrates into `useChat`. `parts`
-    // and `metadata` were stored verbatim as JSON, so they round-trip as-is.
+    // and `metadata` were stored verbatim as JSON. The row's `mode` column is the
+    // source of truth for the turn's mode, so we fold it into `metadata.mode` —
+    // that's where the CLI reads it to color each message's left bar.
     return c.json({
       messages: rows.map((m) => ({
         id: m.id,
         role: m.role,
         parts: m.parts,
-        ...(m.metadata != null ? { metadata: m.metadata } : {}),
+        metadata: {
+          ...(typeof m.metadata === "object" && m.metadata !== null
+            ? m.metadata
+            : {}),
+          mode: m.mode,
+        },
       })),
     });
   });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { safeValidateUIMessages } from "ai";
-import { modeSchema, DEFAULT_MODE } from "nightcode-ai";
+import { modeSchema, DEFAULT_MODE, messageMetadataSchema } from "nightcode-ai";
 import { allCodingTools, type CodingAgentUIMessage } from "nightcode-ai/server";
 
 // Request body for POST /chat. The client (AI SDK's `useChat`) POSTs the full
@@ -28,6 +28,10 @@ export const chatBody = z.object({
       const result = await safeValidateUIMessages<CodingAgentUIMessage>({
         messages,
         tools: allCodingTools,
+        // Same optional metadata contract as the CLI's hydration validator, so
+        // the two can't drift. Optional: assistant turns carry no metadata, and
+        // the client re-POSTs the full history each turn.
+        metadataSchema: messageMetadataSchema,
       });
       if (!result.success) {
         ctx.addIssue({ code: "custom", message: result.error.message });

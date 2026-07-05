@@ -71,6 +71,10 @@ export const chatRoute = new Hono().post(
         role: last.role,
         parts: last.parts as Prisma.InputJsonValue,
         metadata: last.metadata as Prisma.InputJsonValue,
+        // The turn's mode is stored on the row (required column). It's the source
+        // of truth for this message's mode; the CLI reads it back on hydration to
+        // color the left bar. `mode` is already "build" | "plan" — no cast.
+        mode,
       },
       update: {},
     });
@@ -102,6 +106,9 @@ export const chatRoute = new Hono().post(
             role: responseMessage.role,
             parts: responseMessage.parts as Prisma.InputJsonValue,
             metadata: responseMessage.metadata as Prisma.InputJsonValue,
+            // Same turn, same mode — the assistant reply is stored with the mode
+            // it ran in (required column).
+            mode,
           },
           update: {},
         });

@@ -10,6 +10,7 @@
 // server's lookup automatically. Mirrors the `satisfies`-guarded registry
 // pattern used by `tools/schemas.ts`.
 import { z } from "zod";
+import type { Mode } from "nightcode-database";
 import type { ToolName } from "./types.ts";
 import {
   baseInstructions,
@@ -18,9 +19,14 @@ import {
 } from "./instructions.ts";
 
 export type ModeConfig = {
-  /** Stable id, sent over the wire and matched by `modeSchema`. */
-  name: string;
-  /** Short uppercase label shown beneath the text area, e.g. "PLAN". */
+  /**
+   * Stable id, sent over the wire and matched by `modeSchema`. Typed as the
+   * Prisma-generated `Mode` (re-exported from `nightcode-database`), so the DB
+   * enum is the single source of truth: rename a mode there and every entry in
+   * `modes` below fails to type-check.
+   */
+  name: Mode;
+  /** Short capitalized label shown inside the text area, e.g. "Plan". */
   label: string;
   /** One-line human summary (status line / future UI). */
   description: string;
@@ -37,14 +43,14 @@ export type ModeConfig = {
 export const modes = [
   {
     name: "plan",
-    label: "PLAN",
+    label: "Plan",
     description: "Read-only. Investigate and propose a plan; no file changes.",
     instructions: planInstructions,
     tools: ["read_file", "list_directory", "grep"],
   },
   {
     name: "build",
-    label: "BUILD",
+    label: "Build",
     description: "Full access. Read, edit, and run commands (with approval).",
     instructions: buildInstructions,
     tools: [
@@ -93,3 +99,21 @@ export function cycleMode(current: ModeName, dir: 1 | -1): ModeName {
   const next = (base + dir + modes.length) % modes.length;
   return modes[next].name;
 }
+
+/**
+ * The schema for a UI message's `metadata` — carries the mode the turn was sent
+ * in, so a user message's left-bar color reflects that mode rather than the live
+ * provider. It is the SINGLE contract shared by both validation sites (the
+ * server's request validator and the CLI's hydration validator) so they can't
+ * drift; `CodingAgentUIMessage`'s metadata generic is typed to match.
+ *
+ * It MUST be optional: assistant messages produced by the stream carry no
+ * metadata, and `useChat` re-POSTs the whole history each turn — a required
+ * schema would reject those previous assistant messages on the next submit.
+ */
+export const messageMetadataSchema = z
+  .object({ mode: modeSchema })
+  .optional();
+
+/** The typed shape of a UI message's metadata (see `messageMetadataSchema`). */
+export type MessageMetadata = z.infer<typeof messageMetadataSchema>;

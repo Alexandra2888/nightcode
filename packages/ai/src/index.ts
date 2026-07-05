@@ -29,5 +29,6 @@ export {
   modeByName,
   getSystemInstructions,
   cycleMode,
+  messageMetadataSchema,
 } from "./modes.ts";
-export type { ModeConfig, ModeName } from "./modes.ts";
+export type { ModeConfig, ModeName, MessageMetadata } from "./modes.ts";

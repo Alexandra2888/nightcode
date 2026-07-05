@@ -6,4 +6,4 @@
 // here without pulling the Prisma client, driver adapter, or `pg` into their
 // bundle. The runtime client lives behind the `./client` subpath instead.
 export type { Session, Message, Prisma } from "../generated/client.ts";
-export type { Role } from "../generated/enums.ts";
+export type { Role, Mode } from "../generated/enums.ts";

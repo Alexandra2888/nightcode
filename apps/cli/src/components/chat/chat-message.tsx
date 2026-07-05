@@ -2,8 +2,9 @@ import { TextAttributes } from "@opentui/core";
 import { isToolUIPart, getToolName } from "ai";
 import type { ToolUIPart } from "ai";
 import { toolSchemas, type ToolName } from "nightcode-ai";
-import type { CodingAgentUIMessage } from "nightcode-ai/client";
-import { errorColor } from "../../lib/theme.ts";
+import { DEFAULT_MODE, type CodingAgentUIMessage } from "nightcode-ai/client";
+import { errorColor, mutedColor, modeColor } from "../../lib/theme.ts";
+import { Border } from "../border.tsx";
 
 type MessagePart = CodingAgentUIMessage["parts"][number];
 
@@ -91,17 +92,68 @@ function Part({ part }: { part: MessagePart }) {
   return null;
 }
 
-/** Renders a single conversation message: role glyph + its parts, stacked. */
-export function ChatMessage({ message }: { message: CodingAgentUIMessage }) {
+/** Whether a part reads as a distinct "block" (gets its own bordered gutter on
+ *  assistant messages) rather than flowing prose. */
+function isBlockPart(part: MessagePart): boolean {
+  return part.type === "reasoning" || isToolUIPart(part);
+}
+
+/**
+ * A user turn: a detached left bar colored by the mode it was SENT in (read off
+ * `metadata.mode`, which the CLI stamps on send and the server round-trips from
+ * the row's `mode` column) — not the live provider mode. Falls back to the
+ * default mode for any legacy row without metadata.
+ */
+function UserMessage({ message }: { message: CodingAgentUIMessage }) {
+  const mode = message.metadata?.mode ?? DEFAULT_MODE;
   return (
-    <box flexDirection="column">
-      <RoleLabel kind={message.role} />
+    <Border color={modeColor(mode)}>
       <box maxWidth={72} flexDirection="column">
         {message.parts.map((part, i) => (
           <Part key={i} part={part} />
         ))}
       </box>
+    </Border>
+  );
+}
+
+/**
+ * An assistant turn, rendered quieter: no bar, no label. Reasoning and tool
+ * parts get a muted detached bar (the "bordered dimmed" treatment); plain text
+ * gets `paddingLeft: 2` so it aligns with those bordered blocks instead of
+ * jumping to the screen edge.
+ */
+function AssistantMessage({ message }: { message: CodingAgentUIMessage }) {
+  return (
+    <box maxWidth={72} flexDirection="column" gap={1}>
+      {message.parts.map((part, i) =>
+        isBlockPart(part) ? (
+          <Border key={i} color={mutedColor}>
+            <Part part={part} />
+          </Border>
+        ) : (
+          <box key={i} paddingLeft={2}>
+            <Part part={part} />
+          </box>
+        ),
+      )}
     </box>
+  );
+}
+
+/** Renders a single conversation message. User turns get a mode-colored bar;
+ *  assistant turns read quiet; the rare system turn gets a muted bar. */
+export function ChatMessage({ message }: { message: CodingAgentUIMessage }) {
+  if (message.role === "user") return <UserMessage message={message} />;
+  if (message.role === "assistant") return <AssistantMessage message={message} />;
+  return (
+    <Border color={mutedColor}>
+      <box maxWidth={72} flexDirection="column">
+        {message.parts.map((part, i) => (
+          <Part key={i} part={part} />
+        ))}
+      </box>
+    </Border>
   );
 }
 

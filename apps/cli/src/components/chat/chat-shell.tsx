@@ -5,6 +5,7 @@ import type {
   PendingApproval,
 } from "nightcode-ai/client";
 import { warnColor } from "../../lib/theme.ts";
+import { Border } from "../border.tsx";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 import { ChatTextArea } from "./chat-text-area.tsx";
 
@@ -61,22 +62,21 @@ export function ChatShell({
       </scrollbox>
 
       {pendingApproval ? (
-        <box
-          border
-          borderStyle="rounded"
-          borderColor={warnColor}
-          title=" approval required "
-          padding={1}
-          flexDirection="column"
-          flexShrink={0}
-        >
-          <text fg={warnColor}>{`⚒  ${pendingApproval.toolName}`}</text>
-          {pendingApproval.detail ? (
-            <text attributes={TextAttributes.DIM}>
-              {oneLine(pendingApproval.detail)}
-            </text>
-          ) : null}
-          <text>{"[y] approve     [n] deny     esc to go back"}</text>
+        <box flexShrink={0}>
+          <Border color={warnColor}>
+            <box flexDirection="column" paddingY={1} paddingRight={1}>
+              <text fg={warnColor} attributes={TextAttributes.BOLD}>
+                approval required
+              </text>
+              <text fg={warnColor}>{`⚒  ${pendingApproval.toolName}`}</text>
+              {pendingApproval.detail ? (
+                <text attributes={TextAttributes.DIM}>
+                  {oneLine(pendingApproval.detail)}
+                </text>
+              ) : null}
+              <text>{"[y] approve     [n] deny     esc to go back"}</text>
+            </box>
+          </Border>
         </box>
       ) : (
         <ChatTextArea
