@@ -17,6 +17,8 @@ export type ChatCommandContext = {
   exit: () => void;
   /** Navigate to a route, e.g. `"/"` for the home screen. */
   navigate: (to: string) => void;
+  /** Open a dialog by id (see `DialogProvider`), e.g. `"sessions"`. */
+  openDialog: (id: string) => void;
 };
 
 export type ChatCommand = {
@@ -34,6 +36,11 @@ export const chatCommands: ChatCommand[] = [
     name: "/new",
     description: "Start a new session",
     execute: (ctx) => ctx.navigate("/"),
+  },
+  {
+    name: "/sessions",
+    description: "Open past sessions",
+    execute: (ctx) => ctx.openDialog("sessions"),
   },
   {
     name: "/exit",

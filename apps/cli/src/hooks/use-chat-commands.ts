@@ -5,6 +5,7 @@ import {
   matchChatCommand,
   type ChatCommandContext,
 } from "../lib/chat-commands.ts";
+import { useDialog } from "../components/dialog/dialog.tsx";
 
 /**
  * Wires the chat-command registry to the live app capabilities. Usable in any
@@ -19,6 +20,7 @@ import {
 export function useChatCommands() {
   const renderer = useRenderer();
   const navigate = useNavigate();
+  const { openDialog } = useDialog();
 
   const executeChatCommand = useCallback(
     (input: string): boolean => {
@@ -28,11 +30,12 @@ export function useChatCommands() {
         // Destroy the renderer to quit — never process.exit() (see AGENTS.md).
         exit: () => renderer.destroy(),
         navigate: (to) => navigate(to),
+        openDialog: (id) => openDialog(id),
       };
       command.execute(ctx);
       return true;
     },
-    [renderer, navigate],
+    [renderer, navigate, openDialog],
   );
 
   return { executeChatCommand };

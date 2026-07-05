@@ -15,6 +15,7 @@
     "@ai-sdk/react": "^4.0.16",
     "@opentui/core": "latest",
     "@opentui/react": "latest",
+    "date-fns": "^4.4.0",
     "hono": "latest",
     "nightcode-ai": "workspace:*",
     "react": ">=19.0.0",

@@ -1,9 +1,31 @@
-import { MemoryRouter, Routes, Route } from "react-router";
+import { MemoryRouter, Routes, Route, Outlet } from "react-router";
 import { HomeScreen } from "./screens/home-screen.tsx";
 import { ChatScreen } from "./screens/chat-screen.tsx";
 import { NotFoundScreen } from "./screens/not-found-screen.tsx";
 import { ChatConfigProvider } from "./lib/chat-config.tsx";
+import { DialogProvider } from "./components/dialog/dialog.tsx";
+import { SessionsDialog } from "./components/dialog/sessions-dialog.tsx";
 import { bgColor } from "./lib/theme.ts";
+
+/**
+ * Layout route wrapping every screen. Renders the active screen (`<Outlet />`)
+ * plus the always-mounted dialogs. Two reasons dialogs live HERE and not in the
+ * app shell above `MemoryRouter`:
+ *   1. Router context — a dialog can use `useNavigate`/`useParams` (SessionsDialog
+ *      navigates to the picked session).
+ *   2. Key-handler order — dialogs are rendered BEFORE `<Outlet />`, so their
+ *      `useKeyboard` handlers register ahead of the active screen's. That lets a
+ *      dialog's Escape `stopPropagation` beat the screen's Escape (go back/quit).
+ * New router-aware dialogs mount here, before `<Outlet />`.
+ */
+function RouterLayout() {
+  return (
+    <>
+      <SessionsDialog />
+      <Outlet />
+    </>
+  );
+}
 
 /**
  * Root router shell. We use `MemoryRouter` (in-memory history) because a TUI has
@@ -30,11 +52,15 @@ export function App() {
     >
       <MemoryRouter>
         <ChatConfigProvider>
-          <Routes>
-            <Route path="/" element={<HomeScreen />} />
-            <Route path="/sessions/:id" element={<ChatScreen />} />
-            <Route path="*" element={<NotFoundScreen />} />
-          </Routes>
+          <DialogProvider>
+            <Routes>
+              <Route element={<RouterLayout />}>
+                <Route path="/" element={<HomeScreen />} />
+                <Route path="/sessions/:id" element={<ChatScreen />} />
+                <Route path="*" element={<NotFoundScreen />} />
+              </Route>
+            </Routes>
+          </DialogProvider>
         </ChatConfigProvider>
       </MemoryRouter>
     </box>

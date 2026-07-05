@@ -4,6 +4,7 @@ import { useKeyboard } from "@opentui/react";
 import { modeByName } from "nightcode-ai/client";
 import type { ChatCommand } from "../../lib/chat-commands.ts";
 import { useChatConfig } from "../../lib/chat-config.tsx";
+import { useDialog } from "../dialog/dialog.tsx";
 import { useChatCommands } from "../../hooks/use-chat-commands.ts";
 import { useCommandPopover } from "../../hooks/use-command-popover.ts";
 import { modeColor } from "../../lib/theme.ts";
@@ -45,6 +46,7 @@ type ChatTextAreaProps = {
 export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps) {
   const ref = useRef<TextareaRenderable>(null);
   const { mode, cycle } = useChatConfig();
+  const { activeDialog } = useDialog();
   const { executeChatCommand } = useChatCommands();
   const popover = useCommandPopover();
   const activeMode = modeByName(mode);
@@ -62,6 +64,9 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
   // this component is a descendant of the screen, its listener registers first —
   // `stopPropagation` beats the screen's Escape (go back / quit).
   useKeyboard((key) => {
+    // A dialog is open (and owns the keyboard) — the palette can't be open here
+    // and Tab must not cycle the mode behind the overlay.
+    if (activeDialog !== null) return;
     if (popover.open) {
       switch (key.name) {
         case "up":
@@ -121,7 +126,9 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
               placeholder={placeholder}
               height={3}
               wrapMode="word"
-              focused
+              // Release focus while a dialog is open so its search box owns the
+              // keyboard; reclaim it (this stays the only focused input) on close.
+              focused={activeDialog === null}
               keyBindings={[
                 { name: "return", action: "submit" },
                 { name: "return", shift: true, action: "newline" },

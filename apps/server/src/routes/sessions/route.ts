@@ -28,6 +28,21 @@ export const sessionsRoute = new Hono()
     const session = await prisma.session.create({ data: { title } });
     return c.json({ id: session.id }, 201);
   })
+  .get("/", async (c) => {
+    // The session list backing the CLI's `/sessions` dialog. Most-recent first so
+    // the last thing worked on is at the top. `updatedAt` disambiguates the many
+    // same-titled sessions ("Untitled", repeated prompts) in the CLI's subtitle.
+    const sessions = await prisma.session.findMany({
+      orderBy: { updatedAt: "desc" },
+    });
+    return c.json({
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        title: s.title,
+        updatedAt: s.updatedAt,
+      })),
+    });
+  })
   .get("/:id/messages", zValidator("param", sessionParam), async (c) => {
     const { id } = c.req.valid("param");
     const session = await prisma.session.findUnique({ where: { id } });

@@ -2,6 +2,7 @@ import { test, expect, afterEach } from "bun:test";
 import { testRender } from "@opentui/react/test-utils";
 import { MemoryRouter, useLocation } from "react-router";
 import { ChatConfigProvider } from "../../lib/chat-config.tsx";
+import { DialogProvider } from "../dialog/dialog.tsx";
 import { ChatTextArea } from "./chat-text-area.tsx";
 
 // End-to-end palette behavior driven through real keystrokes: typing "/" opens
@@ -36,11 +37,13 @@ async function mountTextArea() {
   testSetup = await testRender(
     <MemoryRouter initialEntries={["/sessions/abc"]}>
       <ChatConfigProvider>
-        <box height={24} flexDirection="column">
-          <LocationProbe />
-          <box flexGrow={1} />
-          <ChatTextArea onSubmit={() => {}} placeholder="type…" />
-        </box>
+        <DialogProvider>
+          <box height={24} flexDirection="column">
+            <LocationProbe />
+            <box flexGrow={1} />
+            <ChatTextArea onSubmit={() => {}} placeholder="type…" />
+          </box>
+        </DialogProvider>
       </ChatConfigProvider>
     </MemoryRouter>,
     { width: 80, height: 24, kittyKeyboard: true },

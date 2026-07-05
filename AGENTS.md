@@ -42,6 +42,23 @@ package is discovered automatically once its folder exists.
 - **Add a screen**: create `screens/<name>-screen.tsx`, add a `<Route path=…>`
   in `app.tsx`, and navigate to it with `useNavigate()` bound to a key via
   `useKeyboard` (e.g. `navigate("/name")`). Go back with `navigate(-1)`.
+- **Dialogs mount in `RouterLayout`, before `<Outlet/>`** — not in the app shell
+  above `MemoryRouter`. `app.tsx` wraps all screens in a layout route
+  (`<Route element={<RouterLayout/>}>`) whose `RouterLayout` renders the
+  always-mounted dialogs *then* `<Outlet/>`. Two reasons a dialog belongs here:
+  (1) **router context** — it can call `useNavigate`/`useParams` (see
+  `components/dialog/sessions-dialog.tsx`); (2) **key-handler order** — OpenTUI
+  global key handlers fire in registration order and `stopPropagation` only stops
+  *later* handlers, so a dialog rendered before `<Outlet/>` registers its Escape
+  handler ahead of the active screen's and can cancel the screen's Escape (go
+  back / quit). Dialogs are **always mounted** and render only when active (they
+  run `useKeyboard` unconditionally, guarded by an `open` check) precisely so that
+  registration happens at app start, not lazily on open — a lazily-mounted dialog
+  would register *after* the screen and lose the Escape race. See
+  `components/dialog/dialog.tsx`. The dialog layer (`DialogProvider` / `useDialog`
+  / `Dialog` / `SearchListDialog`) is reusable — a new dialog is just content
+  wired to an id via the `/`-command's `openDialog(id)` (see
+  `lib/chat-commands.ts`).
 
 ### Server ↔ CLI communication
 
@@ -147,6 +164,19 @@ package is discovered automatically once its folder exists.
   move / submit), and `key.stopPropagation()` from the earlier-registered child
   handler stops a later global handler (e.g. the screen's Escape → go-back/quit).
   The command palette relies on both: see `components/chat/chat-text-area.tsx`.
+- **`<input>` fires `onInput` per keystroke, `onChange` only on submit.** For live
+  filtering (a search box) use `onInput` (per-keystroke, passes the value string);
+  `onChange`/`onSubmit` fire on Enter. See `components/dialog/search-list-dialog.tsx`.
+- **Colors are hex only — `rgba(…)` strings are invalid** (they silently fall back
+  to magenta). For a translucent overlay use 8-digit `#rrggbbaa` (e.g. the dialog
+  backdrop is `#00000080` = 50% black), NOT `rgba(0,0,0,0.5)`. See
+  `components/dialog/dialog.tsx`.
+- **Test key sequences with `mockInput.pressKeys([...], delayMs)`, not
+  back-to-back synchronous presses.** Calling `pressArrow()` then `pressEnter()`
+  synchronously races the stdin parser (the arrow may not land before Enter
+  resolves); `pressKeys(["ARROW_DOWN","RETURN"], 5)` delivers each through the
+  real parse path in order. Same nonzero-delay caveat as `typeText`. See
+  `components/dialog/search-list-dialog.test.tsx`.
 
 ### React effects (`apps/cli`)
 
