@@ -79,15 +79,11 @@ export function ChatShell({
           <text>{"[y] approve     [n] deny     esc to go back"}</text>
         </box>
       ) : (
-        <>
-          <ChatTextArea
-            placeholder={busy ? "Waiting for reply…" : "Reply, then Enter…"}
-            onSubmit={onSend}
-          />
-          <text attributes={TextAttributes.DIM}>
-            enter to send · esc to go back
-          </text>
-        </>
+        <ChatTextArea
+          placeholder={busy ? "Waiting for reply…" : "Reply, then Enter…"}
+          hint="enter to send · esc to go back"
+          onSubmit={onSend}
+        />
       )}
     </box>
   );

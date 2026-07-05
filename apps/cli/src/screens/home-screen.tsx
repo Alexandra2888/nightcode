@@ -1,6 +1,5 @@
 import { useKeyboard, useRenderer } from "@opentui/react";
 import { useNavigate } from "react-router";
-import { TextAttributes } from "@opentui/core";
 import { AsciiArt } from "../components/ascii-art.tsx";
 import { ChatTextArea } from "../components/chat/chat-text-area.tsx";
 import { client } from "../lib/client.ts";
@@ -42,12 +41,10 @@ export function HomeScreen() {
       <box width={60}>
         <ChatTextArea
           placeholder="Type a screen, then Enter…"
+          hint="enter to go · esc to exit"
           onSubmit={handleSubmit}
         />
       </box>
-      <text attributes={TextAttributes.DIM}>
-        enter to go · esc to exit
-      </text>
     </box>
   );
 }

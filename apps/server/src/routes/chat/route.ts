@@ -1,9 +1,13 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { createAgentUIStreamResponse, generateId } from "ai";
+import { convertToModelMessages, generateId } from "ai";
 import { prisma } from "nightcode-database/client";
 import type { Prisma } from "nightcode-database";
-import { codingAgent } from "nightcode-ai/server";
+import {
+  createCodingAgent,
+  allCodingTools,
+  type CodingAgentUIMessage,
+} from "nightcode-ai/server";
 import { chatBody, chatParam } from "./schema.ts";
 
 /**
@@ -20,14 +24,18 @@ import { chatBody, chatParam } from "./schema.ts";
  * is what keeps the exported `AppType` inferable for the CLI's RPC client, so
  * never split the chain into separate `chatRoute.post(...)` statements.
  *
- * The chat endpoint runs the reusable `codingAgent` (from `nightcode-ai/server`) via the
- * AI SDK's `createAgentUIStreamResponse` (Anthropic provider, reads
- * ANTHROPIC_API_KEY). The client POSTs the whole running `messages` history (see
- * `schema.ts`); the helper converts it to model messages internally, streams the
- * assistant's reply, and encodes it as a UI-message stream that the CLI's
- * `useChat` hook consumes. The agent's tools have no `execute`, so the loop stops
- * at each tool call and forwards it to the CLI, which runs it and resubmits —
- * exactly the two-process loop the previous `streamText` config produced.
+ * The chat endpoint builds a MODE-SCOPED agent per request (`createCodingAgent`
+ * from `nightcode-ai/server`, Anthropic provider, reads ANTHROPIC_API_KEY) and
+ * runs it with the low-level SDK pieces rather than the `createAgentUIStreamResponse`
+ * wrapper. We step down a layer because modes need TWO tool sets in one handler:
+ * the incoming `messages` history is validated (in `schema.ts`) and converted
+ * against the FULL tool set (`allCodingTools`) — so a build-mode write/edit/bash
+ * call still parses after the user has switched to plan — while the active turn
+ * runs on the mode's FILTERED set (the agent from `createCodingAgent(mode)`). The
+ * wrapper bundles validate + convert + run onto one tool set, so it can't express
+ * that split. These are the same public SDK calls, in the same order, the wrapper
+ * uses internally. The agent's tools have no `execute`, so the loop stops at each
+ * tool call and forwards it to the CLI, which runs it and resubmits.
  *
  * Persistence: the turn belongs to a session (`:sessionId`, created up front via
  * `POST /sessions`). We persist the newest user message before streaming and the
@@ -45,7 +53,7 @@ export const chatRoute = new Hono().post(
   zValidator("json", chatBody),
   async (c) => {
     const { sessionId } = c.req.valid("param");
-    const { messages } = c.req.valid("json");
+    const { messages, mode } = c.req.valid("json");
 
     // The session must exist (created by `POST /sessions`). 404 if the client
     // streams to an unknown/deleted session.
@@ -67,17 +75,21 @@ export const chatRoute = new Hono().post(
       update: {},
     });
 
-    // Run the agent and encode its output as a UI-message stream. The helper
-    // converts `messages` to model messages internally, so no explicit
-    // `convertToModelMessages`. The stream options mirror the previous
-    // `toUIMessageStreamResponse` call, so persistence is unchanged.
-    return createAgentUIStreamResponse({
-      agent: codingAgent,
-      uiMessages: messages,
-      // Without `generateMessageId`, a normal user→assistant turn's response
-      // message ships with no id (AI SDK only auto-assigns one in the assistant-
-      // continuation case) — so we'd persist an empty id below. Pass `generateId`
-      // explicitly. `sendReasoning` defaults to true; set explicitly for clarity.
+    // Convert the validated history to model messages against the FULL tool set
+    // (see `schema.ts` for why the superset, not the mode's subset), build the
+    // mode-scoped agent, and stream. The agent's filtered tools are what stop a
+    // plan-mode turn from emitting write/edit/bash calls.
+    const modelMessages = await convertToModelMessages(messages, {
+      tools: allCodingTools,
+    });
+    const result = await createCodingAgent(mode).stream({ prompt: modelMessages });
+
+    // Encode the reply as a UI-message stream the CLI's `useChat` consumes.
+    // `originalMessages` + `generateMessageId` give the response message a stable
+    // id (without them a normal user→assistant turn ships with no id, so we'd
+    // persist an empty one). `sendReasoning` defaults to true; set for clarity.
+    return result.toUIMessageStreamResponse<CodingAgentUIMessage>({
+      originalMessages: messages,
       generateMessageId: generateId,
       sendReasoning: true,
       onFinish: async ({ responseMessage, isAborted }) => {

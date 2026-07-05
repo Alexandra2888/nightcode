@@ -16,6 +16,7 @@ import {
 } from "nightcode-ai/client";
 import { client } from "../lib/client.ts";
 import { chatNavState } from "../lib/nav-state.ts";
+import { useChatConfig } from "../lib/chat-config.tsx";
 import { ChatShell } from "../components/chat/chat-shell.tsx";
 
 /**
@@ -42,17 +43,28 @@ export function ChatScreen() {
   const { id: sessionId } = useParams();
   const initialInput = chatNavState.safeParse(location.state).data?.input ?? "";
 
+  // The active behaviour mode lives in the cross-route provider (selected on the
+  // home screen or Tab-toggled here via `ChatTextArea`). `modeRef` mirrors it so
+  // the transport can read the current mode on every request without being
+  // rebuilt — see the `body` function below.
+  const { mode } = useChatConfig();
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+
   // `useChat` manages the conversation. `DefaultChatTransport` POSTs the message
   // history as JSON; the hook owns its own request, so it can't go through the
   // Hono RPC client — but we still derive the URL from it via `$url()` so the
   // route stays type-checked (renaming/reshaping /chat becomes a compile error).
-  // Rebuilt only when the session changes.
+  // Rebuilt only when the session changes. `body` is a function (re-resolved per
+  // request), so it reads the CURRENT mode — including on the automatic tool-loop
+  // resubmits — without the transport being rebuilt when the mode changes.
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: client.chat[":sessionId"]
           .$url({ param: { sessionId: sessionId ?? "" } })
           .toString(),
+        body: () => ({ mode: modeRef.current }),
       }),
     [sessionId],
   );
@@ -119,7 +131,8 @@ export function ChatScreen() {
       return;
     }
     // While a mutating tool awaits approval, y/n decide it; the reply box is
-    // hidden (see ChatShell) so these keystrokes can't leak into it.
+    // hidden (see ChatShell), which also unmounts its Tab handler, so mode can't
+    // be cycled mid-approval.
     if (pendingApproval) {
       if (key.name === "y") approve(pendingApproval);
       else if (key.name === "n") deny(pendingApproval);
