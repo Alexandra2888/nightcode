@@ -45,45 +45,58 @@ export function startCallbackServer(opts?: {
   });
 
   let closed = false;
+  let server: ReturnType<typeof Bun.serve> | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   function close() {
     if (closed) return;
     closed = true;
-    clearTimeout(timer);
-    server.stop(true);
+    if (timer) clearTimeout(timer);
+    server?.stop(true);
   }
 
-  const server = Bun.serve({
-    port: CALLBACK_PORT,
-    fetch(req) {
-      const url = new URL(req.url);
-      if (url.pathname !== CALLBACK_PATH) {
-        return new Response("Not found", { status: 404 });
-      }
+  try {
+    server = Bun.serve({
+      port: CALLBACK_PORT,
+      fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname !== CALLBACK_PATH) {
+          return new Response("Not found", { status: 404 });
+        }
 
-      const parameters = url.searchParams;
-      // Delay shutdown so the browser fully receives the HTML before the socket
-      // closes — stopping inside the handler shows an error tab in the browser.
-      setTimeout(close, 100);
+        const parameters = url.searchParams;
+        // Delay shutdown so the browser fully receives the HTML before the socket
+        // closes — stopping inside the handler shows an error tab in the browser.
+        setTimeout(close, 100);
 
-      const error = parameters.get("error");
-      if (error) {
-        const description = parameters.get("error_description") ?? error;
-        rejectResult(new Error(`Sign-in cancelled (${description})`));
+        const error = parameters.get("error");
+        if (error) {
+          const description = parameters.get("error_description") ?? error;
+          rejectResult(new Error(`Sign-in cancelled (${description})`));
+          return page(
+            "Sign-in cancelled",
+            "You can close this tab and return to nightcode.",
+          );
+        }
+
+        resolveResult({ parameters });
         return page(
-          "Sign-in cancelled",
-          "You can close this tab and return to nightcode.",
+          "Signed in",
+          "You're all set — close this tab and return to nightcode.",
         );
-      }
+      },
+    });
+  } catch (cause) {
+    // The pinned port is busy — almost always a previous /login still waiting on
+    // its callback. Give an actionable message instead of Bun's raw
+    // "Failed to start server".
+    throw new Error(
+      `Couldn't start the sign-in listener on port ${CALLBACK_PORT} — it's already in use. ` +
+        `A previous /login is probably still open; finish or cancel it (or free the port) and retry.`,
+      { cause },
+    );
+  }
 
-      resolveResult({ parameters });
-      return page(
-        "Signed in",
-        "You're all set — close this tab and return to nightcode.",
-      );
-    },
-  });
-
-  const timer = setTimeout(() => {
+  timer = setTimeout(() => {
     rejectResult(new Error("Sign-in timed out"));
     close();
   }, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
