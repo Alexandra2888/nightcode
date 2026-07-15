@@ -39,4 +39,11 @@ export const lightTheme: Theme = {
     selectedBackground: "#e4e4e7",
     selectedForeground: "#18181b",
   },
+  toast: {
+    background: "#ffffff",
+    border: "#d4d4d8",
+    info: "#2563eb",
+    success: "#16a34a",
+    error: "#dc2626",
+  },
 };

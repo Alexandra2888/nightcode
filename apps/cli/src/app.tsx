@@ -8,6 +8,8 @@ import { DialogProvider } from "./components/dialog/dialog.tsx";
 import { SessionsDialog } from "./components/dialog/sessions-dialog.tsx";
 import { ThemeDialog } from "./components/dialog/theme-dialog.tsx";
 import { LayerProvider } from "./lib/layer.tsx";
+import { ToastProvider } from "./lib/toast.tsx";
+import { Toaster } from "./components/toast/toaster.tsx";
 import { ThemeProvider, useTheme } from "./lib/theme/index.ts";
 
 /**
@@ -30,6 +32,7 @@ function RouterLayout() {
     <>
       <SessionsDialog />
       <ThemeDialog />
+      <Toaster />
       <Outlet />
     </>
   );
@@ -72,19 +75,21 @@ export function App() {
     <ThemeProvider>
       <ThemedRoot>
         <LayerProvider>
-          <MemoryRouter>
-            <ChatConfigProvider>
-              <DialogProvider>
-                <Routes>
-                  <Route element={<RouterLayout />}>
-                    <Route path="/" element={<HomeScreen />} />
-                    <Route path="/sessions/:id" element={<ChatScreen />} />
-                    <Route path="*" element={<NotFoundScreen />} />
-                  </Route>
-                </Routes>
-              </DialogProvider>
-            </ChatConfigProvider>
-          </MemoryRouter>
+          <ToastProvider>
+            <MemoryRouter>
+              <ChatConfigProvider>
+                <DialogProvider>
+                  <Routes>
+                    <Route element={<RouterLayout />}>
+                      <Route path="/" element={<HomeScreen />} />
+                      <Route path="/sessions/:id" element={<ChatScreen />} />
+                      <Route path="*" element={<NotFoundScreen />} />
+                    </Route>
+                  </Routes>
+                </DialogProvider>
+              </ChatConfigProvider>
+            </MemoryRouter>
+          </ToastProvider>
         </LayerProvider>
       </ThemedRoot>
     </ThemeProvider>

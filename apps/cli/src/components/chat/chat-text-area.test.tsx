@@ -3,6 +3,7 @@ import { testRender } from "@opentui/react/test-utils";
 import { MemoryRouter, useLocation } from "react-router";
 import { ChatConfigProvider } from "../../lib/chat-config.tsx";
 import { LayerProvider } from "../../lib/layer.tsx";
+import { ToastProvider } from "../../lib/toast.tsx";
 import { ThemeProvider } from "../../lib/theme/index.ts";
 import { DialogProvider } from "../dialog/dialog.tsx";
 import { ChatTextArea } from "./chat-text-area.tsx";
@@ -40,17 +41,19 @@ async function mountTextArea(onSubmit: (value: string) => void = () => {}) {
   testSetup = await testRender(
     <ThemeProvider>
       <LayerProvider>
-        <MemoryRouter initialEntries={["/sessions/abc"]}>
-          <ChatConfigProvider>
-            <DialogProvider>
-              <box height={24} flexDirection="column">
-                <LocationProbe />
-                <box flexGrow={1} />
-                <ChatTextArea onSubmit={onSubmit} placeholder="type…" />
-              </box>
-            </DialogProvider>
-          </ChatConfigProvider>
-        </MemoryRouter>
+        <ToastProvider>
+          <MemoryRouter initialEntries={["/sessions/abc"]}>
+            <ChatConfigProvider>
+              <DialogProvider>
+                <box height={24} flexDirection="column">
+                  <LocationProbe />
+                  <box flexGrow={1} />
+                  <ChatTextArea onSubmit={onSubmit} placeholder="type…" />
+                </box>
+              </DialogProvider>
+            </ChatConfigProvider>
+          </MemoryRouter>
+        </ToastProvider>
       </LayerProvider>
     </ThemeProvider>,
     // `exitOnCtrlC: false` mirrors the app (`index.tsx`) so Ctrl+C is routed by

@@ -10,6 +10,7 @@
  *  navigate). That keeps this module free of OpenTUI/React and unit-testable. */
 
 import { DIALOG_IDS, type DialogId } from "../components/dialog/dialog-ids.ts";
+import type { ToastVariant } from "./toast.tsx";
 
 /** The capabilities a command may use. The hook builds the concrete versions
  *  from `useRenderer()` / `useNavigate()`; commands stay ignorant of both. */
@@ -22,6 +23,8 @@ export type ChatCommandContext = {
   /** Open a dialog by id — a `DialogId`, so the id can't drift from the dialog
    *  component's `id` prop (see `dialog-ids.ts`). */
   openDialog: (id: DialogId) => void;
+  /** Pop a toast notification. Backed by the toast layer (see `lib/toast.tsx`). */
+  toast: (variant: ToastVariant, message: string) => void;
 };
 
 export type ChatCommand = {
@@ -38,7 +41,10 @@ export const chatCommands: ChatCommand[] = [
   {
     name: "/new",
     description: "Start a new session",
-    execute: (ctx) => ctx.navigate("/"),
+    execute: (ctx) => {
+      ctx.navigate("/");
+      ctx.toast("info", "Started a new session");
+    },
   },
   {
     name: "/sessions",

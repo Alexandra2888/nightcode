@@ -7,10 +7,16 @@ import {
 
 /** A ChatCommandContext that records which capability each command invokes. */
 function spyContext() {
-  const calls: { exit: number; navigate: string[]; openDialog: string[] } = {
+  const calls: {
+    exit: number;
+    navigate: string[];
+    openDialog: string[];
+    toast: { variant: string; message: string }[];
+  } = {
     exit: 0,
     navigate: [],
     openDialog: [],
+    toast: [],
   };
   const ctx: ChatCommandContext = {
     exit: () => {
@@ -18,6 +24,7 @@ function spyContext() {
     },
     navigate: (to) => calls.navigate.push(to),
     openDialog: (id) => calls.openDialog.push(id),
+    toast: (variant, message) => calls.toast.push({ variant, message }),
   };
   return { ctx, calls };
 }
@@ -70,10 +77,13 @@ describe("command execution", () => {
     expect(calls.exit).toBe(0);
   });
 
-  test("/new navigates home", () => {
+  test("/new navigates home and confirms with an info toast", () => {
     const { ctx, calls } = spyContext();
     matchChatCommand("/new")?.execute(ctx);
     expect(calls.navigate).toEqual(["/"]);
+    expect(calls.toast).toEqual([
+      { variant: "info", message: "Started a new session" },
+    ]);
     expect(calls.openDialog).toEqual([]);
   });
 

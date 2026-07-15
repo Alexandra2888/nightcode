@@ -18,6 +18,7 @@ import {
 import { client } from "../lib/client.ts";
 import { chatNavState } from "../lib/nav-state.ts";
 import { useChatConfig } from "../lib/chat-config.tsx";
+import { useToast } from "../lib/toast.tsx";
 import { buildUserParts } from "../lib/file-mentions.ts";
 import { ChatShell } from "../components/chat/chat-shell.tsx";
 
@@ -43,6 +44,7 @@ export function ChatScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id: sessionId } = useParams();
+  const toast = useToast();
   const initialInput = chatNavState.safeParse(location.state).data?.input ?? "";
 
   // The active behaviour mode lives in the cross-route provider (selected on the
@@ -159,7 +161,13 @@ export function ChatScreen() {
         if (!cancelled) navigate("/", { replace: true });
         return;
       }
-      if (!res.ok || cancelled) return;
+      if (!res.ok) {
+        // A non-404 failure otherwise leaves the screen blank with no feedback;
+        // surface it as a toast (the load just stops — no partial hydration).
+        if (!cancelled) toast.error("Couldn't load this session");
+        return;
+      }
+      if (cancelled) return;
       const { messages: history } = await res.json();
       // History is untyped external input — validate it with the SDK's own
       // validator rather than trusting the stored shape. `metadataSchema` is the

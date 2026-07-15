@@ -37,4 +37,11 @@ export const defaultTheme: Theme = {
     selectedBackground: "#3f3f46",
     selectedForeground: "#e4e4e7",
   },
+  toast: {
+    background: "#0a0a0a",
+    border: "#3f3f46",
+    info: "#4a9eff",
+    success: "#4ade80",
+    error: "#f87171",
+  },
 };

@@ -57,4 +57,16 @@ export type Theme = {
     /** The highlighted row's text color. */
     selectedForeground: string;
   };
+  toast: {
+    /** The toast card fill. */
+    background: string;
+    /** Default card border (neutral chrome). */
+    border: string;
+    /** Per-variant accent (card border + title) for info toasts. */
+    info: string;
+    /** Per-variant accent for success toasts. */
+    success: string;
+    /** Per-variant accent for error toasts. */
+    error: string;
+  };
 };

@@ -6,6 +6,7 @@ import {
   type ChatCommandContext,
 } from "../lib/chat-commands.ts";
 import { useDialog } from "../components/dialog/dialog.tsx";
+import { useToast } from "../lib/toast.tsx";
 
 /**
  * Wires the chat-command registry to the live app capabilities. Usable in any
@@ -21,6 +22,7 @@ export function useChatCommands() {
   const renderer = useRenderer();
   const navigate = useNavigate();
   const { openDialog } = useDialog();
+  const toast = useToast();
 
   const executeChatCommand = useCallback(
     (input: string): boolean => {
@@ -31,11 +33,12 @@ export function useChatCommands() {
         exit: () => renderer.destroy(),
         navigate,
         openDialog,
+        toast: (variant, message) => toast[variant](message),
       };
       command.execute(ctx);
       return true;
     },
-    [renderer, navigate, openDialog],
+    [renderer, navigate, openDialog, toast],
   );
 
   return { executeChatCommand };
