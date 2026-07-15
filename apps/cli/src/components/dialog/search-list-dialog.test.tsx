@@ -1,6 +1,7 @@
 import { test, expect, afterEach } from "bun:test";
 import { useEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
+import { LayerProvider } from "../../lib/layer.tsx";
 import { DialogProvider, useDialog } from "./dialog.tsx";
 import { SearchListDialog } from "./search-list-dialog.tsx";
 
@@ -41,11 +42,13 @@ function Harness({ onSelect }: { onSelect: (value: string) => void }) {
 
 async function mountDialog(onSelect: (value: string) => void = () => {}) {
   testSetup = await testRender(
-    <DialogProvider>
-      <box height={24} width={80}>
-        <Harness onSelect={onSelect} />
-      </box>
-    </DialogProvider>,
+    <LayerProvider>
+      <DialogProvider>
+        <box height={24} width={80}>
+          <Harness onSelect={onSelect} />
+        </box>
+      </DialogProvider>
+    </LayerProvider>,
     { width: 80, height: 24, kittyKeyboard: true },
   );
   await testSetup.renderOnce();

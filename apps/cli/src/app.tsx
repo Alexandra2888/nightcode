@@ -5,6 +5,7 @@ import { NotFoundScreen } from "./screens/not-found-screen.tsx";
 import { ChatConfigProvider } from "./lib/chat-config.tsx";
 import { DialogProvider } from "./components/dialog/dialog.tsx";
 import { SessionsDialog } from "./components/dialog/sessions-dialog.tsx";
+import { LayerProvider } from "./lib/layer.tsx";
 import { bgColor } from "./lib/theme.ts";
 
 /**
@@ -17,6 +18,10 @@ import { bgColor } from "./lib/theme.ts";
  *      `useKeyboard` handlers register ahead of the active screen's. That lets a
  *      dialog's Escape `stopPropagation` beat the screen's Escape (go back/quit).
  * New router-aware dialogs mount here, before `<Outlet />`.
+ *
+ * NOTE: only Escape (and other per-key ordering) works this way. Ctrl+C is
+ * centralized in `LayerProvider` (see `lib/layer.tsx`), which routes it down an
+ * explicit layer stack rather than relying on registration order.
  */
 function RouterLayout() {
   return (
@@ -50,19 +55,21 @@ export function App() {
       width="100%"
       height="100%"
     >
-      <MemoryRouter>
-        <ChatConfigProvider>
-          <DialogProvider>
-            <Routes>
-              <Route element={<RouterLayout />}>
-                <Route path="/" element={<HomeScreen />} />
-                <Route path="/sessions/:id" element={<ChatScreen />} />
-                <Route path="*" element={<NotFoundScreen />} />
-              </Route>
-            </Routes>
-          </DialogProvider>
-        </ChatConfigProvider>
-      </MemoryRouter>
+      <LayerProvider>
+        <MemoryRouter>
+          <ChatConfigProvider>
+            <DialogProvider>
+              <Routes>
+                <Route element={<RouterLayout />}>
+                  <Route path="/" element={<HomeScreen />} />
+                  <Route path="/sessions/:id" element={<ChatScreen />} />
+                  <Route path="*" element={<NotFoundScreen />} />
+                </Route>
+              </Routes>
+            </DialogProvider>
+          </ChatConfigProvider>
+        </MemoryRouter>
+      </LayerProvider>
     </box>
   );
 }

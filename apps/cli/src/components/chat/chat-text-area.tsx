@@ -7,7 +7,8 @@ import { useChatConfig } from "../../lib/chat-config.tsx";
 import { useDialog } from "../dialog/dialog.tsx";
 import { useChatCommands } from "../../hooks/use-chat-commands.ts";
 import { useCommandPopover } from "../../hooks/use-command-popover.ts";
-import { modeColor } from "../../lib/theme.ts";
+import { useLayer, useLayerContext } from "../../lib/layer.tsx";
+import { modeColor, mutedColor } from "../../lib/theme.ts";
 import { Border } from "../border.tsx";
 import { CommandPopover } from "./command-popover.tsx";
 
@@ -49,7 +50,27 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
   const { activeDialog } = useDialog();
   const { executeChatCommand } = useChatCommands();
   const popover = useCommandPopover();
+  const { topLayer } = useLayerContext();
   const activeMode = modeByName(mode);
+
+  // Base layer of the prompt. On Ctrl+C: close the palette if open, else clear a
+  // non-empty buffer, else return false so the app-quit fallback fires. Reads
+  // `popover.open`/`ref.current` live — `useLayer` refreshes the handler each
+  // render, so there's no stale `popover.open`.
+  useLayer("chatTextArea", {
+    z: 10,
+    onKey: () => {
+      if (popover.open) {
+        popover.close();
+        return true;
+      }
+      if ((ref.current?.plainText ?? "").length > 0) {
+        ref.current?.setText("");
+        return true;
+      }
+      return false; // empty input → fall through → provider quits the app
+    },
+  });
 
   // Shared by Enter and mouse click: clear the buffer, close the palette, run it.
   const runCommand = (command: ChatCommand) => {
@@ -104,7 +125,11 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
     if (key.name === "tab") cycle(key.shift ? -1 : 1);
   });
 
-  const barColor = modeColor(mode);
+  // The left bar is this box's focus ring: mode color while the prompt is on top,
+  // muted when a dialog (or any higher layer) covers it — so it doesn't bleed the
+  // mode color through the dialog's translucent overlay.
+  const barColor =
+    topLayer === "chatTextArea" ? modeColor(mode) : mutedColor;
 
   return (
     <box flexDirection="column">
@@ -126,9 +151,11 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
               placeholder={placeholder}
               height={3}
               wrapMode="word"
-              // Release focus while a dialog is open so its search box owns the
-              // keyboard; reclaim it (this stays the only focused input) on close.
-              focused={activeDialog === null}
+              // Focus follows the layer stack: hold focus only while the prompt is
+              // the top layer, releasing it whenever a dialog (its search box) is
+              // on top and reclaiming it on close. Single source of truth with the
+              // bar color above.
+              focused={topLayer === "chatTextArea"}
               keyBindings={[
                 { name: "return", action: "submit" },
                 { name: "return", shift: true, action: "newline" },

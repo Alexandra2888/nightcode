@@ -8,6 +8,7 @@ import {
 import { TextAttributes } from "@opentui/core";
 import { useKeyboard } from "@opentui/react";
 import { bgColor, mutedColor } from "../../lib/theme.ts";
+import { useLayer } from "../../lib/layer.tsx";
 
 /**
  * Dialog primitives — the browser's "dialog + overlay + focus + escape" that a
@@ -109,6 +110,21 @@ export function Dialog({
   children: ReactNode;
   width?: number;
 }) {
+  // Top of the layer stack while open, so Ctrl+C closes the dialog (beating the
+  // text-area's clear and the app-quit fallback). `DialogProvider` keeps only one
+  // dialog open at a time, so a single "dialog" id is correct even though `Dialog`
+  // is instantiated per concrete dialog — only the open one has `enabled: true`.
+  // The dispatcher only calls `onKey` for Ctrl+C, so no key check is needed here;
+  // Escape stays on the `useKeyboard` handler below.
+  useLayer("dialog", {
+    z: 100,
+    enabled: open,
+    onKey: () => {
+      onClose();
+      return true;
+    },
+  });
+
   // Registered every render (even while closed) so it sits ahead of the screen's
   // Escape handler; the guard makes it a no-op until the dialog is shown.
   useKeyboard((key) => {

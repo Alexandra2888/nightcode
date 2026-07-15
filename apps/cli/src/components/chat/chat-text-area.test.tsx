@@ -2,6 +2,7 @@ import { test, expect, afterEach } from "bun:test";
 import { testRender } from "@opentui/react/test-utils";
 import { MemoryRouter, useLocation } from "react-router";
 import { ChatConfigProvider } from "../../lib/chat-config.tsx";
+import { LayerProvider } from "../../lib/layer.tsx";
 import { DialogProvider } from "../dialog/dialog.tsx";
 import { ChatTextArea } from "./chat-text-area.tsx";
 
@@ -35,18 +36,22 @@ function LocationProbe() {
  *  `bottom="100%"` palette floats on-screen above it (as it does in the app). */
 async function mountTextArea() {
   testSetup = await testRender(
-    <MemoryRouter initialEntries={["/sessions/abc"]}>
-      <ChatConfigProvider>
-        <DialogProvider>
-          <box height={24} flexDirection="column">
-            <LocationProbe />
-            <box flexGrow={1} />
-            <ChatTextArea onSubmit={() => {}} placeholder="type…" />
-          </box>
-        </DialogProvider>
-      </ChatConfigProvider>
-    </MemoryRouter>,
-    { width: 80, height: 24, kittyKeyboard: true },
+    <LayerProvider>
+      <MemoryRouter initialEntries={["/sessions/abc"]}>
+        <ChatConfigProvider>
+          <DialogProvider>
+            <box height={24} flexDirection="column">
+              <LocationProbe />
+              <box flexGrow={1} />
+              <ChatTextArea onSubmit={() => {}} placeholder="type…" />
+            </box>
+          </DialogProvider>
+        </ChatConfigProvider>
+      </MemoryRouter>
+    </LayerProvider>,
+    // `exitOnCtrlC: false` mirrors the app (`index.tsx`) so Ctrl+C is routed by
+    // `LayerProvider`, not swallowed by the renderer's built-in quit.
+    { width: 80, height: 24, kittyKeyboard: true, exitOnCtrlC: false },
   );
   await testSetup.renderOnce();
   return testSetup;
@@ -92,4 +97,35 @@ test("Escape closes the palette without navigating", async () => {
   const frame = await waitForFrame((f) => !f.includes("/exit")); // closed
   expect(frame).not.toContain("/exit");
   expect(frame).toContain("PATH:/sessions/abc"); // did not navigate
+});
+
+test("Ctrl+C clears a non-empty buffer without quitting", async () => {
+  const { mockInput, waitForFrame, renderer } = await mountTextArea();
+  await mockInput.typeText("hello", KEY_DELAY_MS);
+  await waitForFrame((f) => f.includes("hello"));
+
+  let destroyed = 0;
+  const realDestroy = renderer.destroy.bind(renderer);
+  renderer.destroy = () => {
+    destroyed += 1;
+  };
+  mockInput.pressCtrlC();
+  const frame = await waitForFrame((f) => !f.includes("hello")); // buffer cleared
+  expect(frame).not.toContain("hello");
+  expect(destroyed).toBe(0); // clear claimed Ctrl+C — app stays alive
+  renderer.destroy = realDestroy;
+});
+
+test("Ctrl+C on an empty buffer quits the app", async () => {
+  const { mockInput, renderOnce, renderer } = await mountTextArea();
+
+  let destroyed = 0;
+  const realDestroy = renderer.destroy.bind(renderer);
+  renderer.destroy = () => {
+    destroyed += 1;
+  };
+  mockInput.pressCtrlC();
+  await renderOnce();
+  expect(destroyed).toBe(1); // nothing to clear → fall through → quit
+  renderer.destroy = realDestroy;
 });
