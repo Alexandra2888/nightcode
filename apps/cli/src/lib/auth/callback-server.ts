@@ -34,9 +34,19 @@ function page(title: string, message: string): Response {
   );
 }
 
+// The one currently-listening callback server, if any. A retried `/login`
+// cancels the previous (still-waiting) listener and rebinds, rather than
+// colliding on the pinned port — the common case when a prior attempt failed at
+// Clerk (e.g. an unregistered redirect_uri) so its listener never got a request.
+let active: CallbackServer | null = null;
+
 export function startCallbackServer(opts?: {
   timeoutMs?: number;
 }): CallbackServer {
+  // Free the port from any abandoned prior attempt before binding.
+  active?.close();
+  active = null;
+
   let resolveResult!: (result: CallbackResult) => void;
   let rejectResult!: (error: Error) => void;
   const result = new Promise<CallbackResult>((resolve, reject) => {
@@ -52,6 +62,7 @@ export function startCallbackServer(opts?: {
     closed = true;
     if (timer) clearTimeout(timer);
     server?.stop(true);
+    if (active === handle) active = null;
   }
 
   try {
@@ -101,5 +112,7 @@ export function startCallbackServer(opts?: {
     close();
   }, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
-  return { result, close };
+  const handle: CallbackServer = { result, close };
+  active = handle;
+  return handle;
 }
