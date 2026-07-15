@@ -1,5 +1,6 @@
 import { readAuth, clearAuth } from "./auth-config.ts";
 import { revokeToken } from "./oauth.ts";
+import { emitAuthChange } from "./auth-events.ts";
 
 // Sign out: revoke the refresh token at Clerk, then clear the local auth file.
 // Revocation is best-effort — a network failure must NOT block clearing local
@@ -22,5 +23,6 @@ export async function runLogout(): Promise<LogoutResult> {
     }
   }
   await clearAuth();
+  emitAuthChange();
   return { revokeFailed };
 }

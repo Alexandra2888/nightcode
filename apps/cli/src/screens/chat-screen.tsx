@@ -22,6 +22,14 @@ import { useToast } from "../lib/toast.tsx";
 import { buildUserParts } from "../lib/file-mentions.ts";
 import { ChatShell } from "../components/chat/chat-shell.tsx";
 
+/** True when a `useChat` stream error is an auth failure (server 401). Auth
+ *  failures are system events, not chat content, so they're routed to a toast
+ *  rather than the inline error line under the input. */
+function isAuthError(error: Error | undefined): boolean {
+  if (!error) return false;
+  return /\b401\b|unauthorized/i.test(error.message);
+}
+
 /**
  * Chat screen for a single session (`/sessions/:id`). The session already exists
  * (the home screen created it before navigating), so the id is read straight off
@@ -102,6 +110,12 @@ export function ChatScreen() {
       },
     });
 
+  // Auth failures on the chat stream are system events, not chat content —
+  // surface them as a toast and keep them out of the inline error line (below).
+  useEffect(() => {
+    if (isAuthError(error)) toast.error("Please sign in with /login");
+  }, [error, toast]);
+
   // Ids currently being approved/executed — bridges the async gap between the
   // keypress and the tool result so the prompt hides and a second press can't
   // double-run. The ref is the synchronous guard; the state drives re-render.
@@ -165,6 +179,11 @@ export function ChatScreen() {
         if (!cancelled) navigate("/", { replace: true });
         return;
       }
+      if (res.status === 401) {
+        // System event, not a session-load problem — route to a toast.
+        if (!cancelled) toast.error("Please sign in with /login");
+        return;
+      }
       if (!res.ok) {
         // A non-404 failure otherwise leaves the screen blank with no feedback;
         // surface it as a toast (the load just stops — no partial hydration).
@@ -207,7 +226,8 @@ export function ChatScreen() {
     <ChatShell
       messages={messages}
       status={status}
-      error={error}
+      // Auth errors are toasted (above); only genuine stream errors render inline.
+      error={isAuthError(error) ? undefined : error}
       pendingApproval={pendingApproval}
       onSend={async (text) => {
         const trimmed = text.trim();

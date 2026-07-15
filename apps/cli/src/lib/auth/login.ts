@@ -6,6 +6,7 @@ import {
 } from "./oauth.ts";
 import { startCallbackServer } from "./callback-server.ts";
 import { writeAuth } from "./auth-config.ts";
+import { emitAuthChange } from "./auth-events.ts";
 
 // Orchestrates the browser sign-in: build the authorization URL, start the
 // loopback, open the browser, wait for the redirect, exchange the code, and
@@ -33,6 +34,7 @@ export async function runLogin(): Promise<void> {
       refresh_token: tokens.refresh_token,
       expires_at: Date.now() + expiresIn * 1000,
     });
+    emitAuthChange();
   } finally {
     callback.close();
   }

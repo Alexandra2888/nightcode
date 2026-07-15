@@ -4,10 +4,14 @@ import { AsciiArt } from "../components/ascii-art.tsx";
 import { ChatTextArea } from "../components/chat/chat-text-area.tsx";
 import { client } from "../lib/client.ts";
 import type { ChatNavState } from "../lib/nav-state.ts";
+import { useAuthStatus } from "../hooks/use-auth-status.ts";
+import { useTheme } from "../lib/theme/theme-provider.tsx";
 
 export function HomeScreen() {
   const renderer = useRenderer();
   const navigate = useNavigate();
+  const signedIn = useAuthStatus();
+  const { theme } = useTheme();
 
   useKeyboard((key) => {
     // Never call process.exit() directly — destroy the renderer instead.
@@ -38,7 +42,12 @@ export function HomeScreen() {
       gap={1}
     >
       <AsciiArt />
-      <box width={60}>
+      <box width={60} flexDirection="column" gap={1}>
+        <text
+          fg={signedIn ? theme.text.primary : theme.border.muted}
+        >
+          {signedIn ? "● signed in" : "○ signed out · /login"}
+        </text>
         <ChatTextArea
           placeholder="Type a screen, then Enter…"
           hint="enter to go · esc to exit"
