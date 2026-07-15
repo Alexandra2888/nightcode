@@ -33,8 +33,9 @@ function LocationProbe() {
 }
 
 /** Mounts ChatTextArea with its real providers, anchored near the bottom so the
- *  `bottom="100%"` palette floats on-screen above it (as it does in the app). */
-async function mountTextArea() {
+ *  `bottom="100%"` palette floats on-screen above it (as it does in the app).
+ *  `onSubmit` defaults to a no-op; pass a spy to assert (non-)submission. */
+async function mountTextArea(onSubmit: (value: string) => void = () => {}) {
   testSetup = await testRender(
     <LayerProvider>
       <MemoryRouter initialEntries={["/sessions/abc"]}>
@@ -43,7 +44,7 @@ async function mountTextArea() {
             <box height={24} flexDirection="column">
               <LocationProbe />
               <box flexGrow={1} />
-              <ChatTextArea onSubmit={() => {}} placeholder="type…" />
+              <ChatTextArea onSubmit={onSubmit} placeholder="type…" />
             </box>
           </DialogProvider>
         </ChatConfigProvider>
@@ -97,6 +98,44 @@ test("Escape closes the palette without navigating", async () => {
   const frame = await waitForFrame((f) => !f.includes("/exit")); // closed
   expect(frame).not.toContain("/exit");
   expect(frame).toContain("PATH:/sessions/abc"); // did not navigate
+});
+
+test("typing @ opens the file-mention popover, filtered by path", async () => {
+  const { mockInput, waitForFrame } = await mountTextArea();
+  // The workspace walk (from the repo root) contains exactly this hook path.
+  await mockInput.typeText("@use-file-mention", KEY_DELAY_MS);
+  const frame = await waitForFrame((f) =>
+    f.includes("use-file-mention-popover.ts"),
+  );
+  expect(frame).toContain("apps/cli/src/hooks/use-file-mention-popover.ts");
+});
+
+test("Enter inserts the highlighted path and does NOT submit", async () => {
+  let submitted: string | null = null;
+  const { mockInput, waitForFrame } = await mountTextArea((value) => {
+    submitted = value;
+  });
+  await mockInput.typeText("@use-file-mention", KEY_DELAY_MS);
+  await waitForFrame((f) => f.includes("use-file-mention-popover.ts")); // open
+
+  mockInput.pressEnter();
+  // The buffer now holds the spliced path; the message was not sent.
+  const frame = await waitForFrame((f) =>
+    f.includes("@apps/cli/src/hooks/use-file-mention-popover.ts"),
+  );
+  expect(frame).toContain("@apps/cli/src/hooks/use-file-mention-popover.ts");
+  expect(submitted).toBeNull(); // Enter inserted, it did not submit
+});
+
+test("@ inside an email does not open the popover", async () => {
+  const { mockInput, waitForFrame, renderOnce } = await mountTextArea();
+  await mockInput.typeText("mail@domain", KEY_DELAY_MS);
+  await waitForFrame((f) => f.includes("mail@domain")); // text is in the buffer
+  await renderOnce();
+  const frame = testSetup.captureCharFrame();
+  // No file rows — the '@' followed a word char, so it's not a mention.
+  expect(frame).not.toContain("use-file-mention-popover.ts");
+  expect(frame).not.toContain(".tsx");
 });
 
 test("Ctrl+C clears a non-empty buffer without quitting", async () => {

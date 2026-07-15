@@ -10,7 +10,11 @@
  */
 export const baseInstructions =
   "You are a coding agent operating in the user's current working " +
-  "directory. All paths are relative to the working directory.";
+  "directory. All paths are relative to the working directory. When the user " +
+  "references a file with an '@' prefix (e.g. @src/foo.ts), that means the " +
+  "workspace file src/foo.ts — its contents are usually provided inline in the " +
+  "message as <file path=\"src/foo.ts\">…</file>, so use that instead of " +
+  "re-reading it, and never pass the literal '@' to a tool.";
 
 /**
  * Build mode section — the full-access agent: read/list/grep plus

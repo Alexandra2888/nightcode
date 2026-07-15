@@ -1,6 +1,7 @@
 import { test, expect, afterEach } from "bun:test";
 import { testRender } from "@opentui/react/test-utils";
 import type { CodingAgentUIMessage } from "nightcode-ai/client";
+import { fileContextText } from "../../lib/file-mentions.ts";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 
 // These exercise the message part-type branches that the text-only /chat
@@ -85,6 +86,25 @@ test("renders a failed tool invocation with its error text", async () => {
   const frame = await frameFor(<ChatMessage message={message} />);
   expect(frame).toContain("grep");
   expect(frame).toContain("network exploded");
+});
+
+test("collapses an inlined @file-context part to a path chip", async () => {
+  // A `@file` mention is sent as the raw text plus an inlined
+  // `<file path="…">…</file>` context part (buildUserParts). The model gets the
+  // full contents, but the transcript must collapse it to a chip.
+  const message: CodingAgentUIMessage = {
+    id: "m5",
+    role: "user",
+    metadata: { mode: "build" },
+    parts: [
+      { type: "text", text: "explain @a.ts" },
+      { type: "text", text: fileContextText("a.ts", "SECRET_FILE_CONTENTS") },
+    ],
+  };
+  const frame = await frameFor(<ChatMessage message={message} />);
+  expect(frame).toContain("explain @a.ts"); // the human message stays
+  expect(frame).toContain("▤ a.ts"); // context collapsed to a chip
+  expect(frame).not.toContain("SECRET_FILE_CONTENTS"); // contents not dumped
 });
 
 test("ErrorMessage renders an inline assistant error entry", async () => {

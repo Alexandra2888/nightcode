@@ -18,6 +18,7 @@ import {
 import { client } from "../lib/client.ts";
 import { chatNavState } from "../lib/nav-state.ts";
 import { useChatConfig } from "../lib/chat-config.tsx";
+import { buildUserParts } from "../lib/file-mentions.ts";
 import { ChatShell } from "../components/chat/chat-shell.tsx";
 
 /**
@@ -174,8 +175,12 @@ export function ChatScreen() {
       setMessages(hydrated);
       if (initialInput && hydrated.length === 0) {
         // Stamp the opening message with the mode it's sent in so its bar colors
-        // immediately (and persists) — same as replies below.
-        sendMessage({ text: initialInput, metadata: { mode: modeRef.current } });
+        // immediately (and persists) — same as replies below. Resolve any
+        // `@file` mentions to inline context parts (re-check `cancelled` after
+        // the async read).
+        const parts = await buildUserParts(initialInput);
+        if (cancelled) return;
+        sendMessage({ parts, metadata: { mode: modeRef.current } });
       }
     }
     loadSession();
@@ -192,12 +197,16 @@ export function ChatScreen() {
       status={status}
       error={error}
       pendingApproval={pendingApproval}
-      onSend={(text) => {
+      onSend={async (text) => {
         const trimmed = text.trim();
-        // Attach the current mode so this user message's left bar reflects the
-        // mode it was sent in (not the live provider), immediately and after a
-        // reload. Persistence comes from the top-level `mode` body field.
-        if (trimmed) sendMessage({ text: trimmed, metadata: { mode: modeRef.current } });
+        if (!trimmed) return;
+        // Resolve `@file` mentions to inline context parts so the agent reads
+        // exactly the referenced file (no `@`-prefixed read_file, no wasted
+        // round-trip). The first part keeps the raw text (with `@path`) for
+        // display. Mode is attached so this message's left bar reflects the mode
+        // it was sent in (not the live provider), immediately and after reload.
+        const parts = await buildUserParts(trimmed);
+        sendMessage({ parts, metadata: { mode: modeRef.current } });
       }}
     />
   );

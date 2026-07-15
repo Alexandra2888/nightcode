@@ -164,6 +164,21 @@ package is discovered automatically once its folder exists.
   move / submit), and `key.stopPropagation()` from the earlier-registered child
   handler stops a later global handler (e.g. the screen's Escape → go-back/quit).
   The command palette relies on both: see `components/chat/chat-text-area.tsx`.
+- **Prompt Enter contract — keep this order when touching `chat-text-area.tsx`.**
+  Enter precedence is arbitrated by ONE `useKeyboard` switch in
+  `components/chat/chat-text-area.tsx` (NOT the layer service — `lib/layer.tsx`
+  routes only Ctrl+C). Any feature that owns Enter registers as an ordered branch
+  there and consumes with `preventDefault()` + `stopPropagation()`. The contract:
+  1. **File-mention popover open?** Enter inserts the highlighted path (never submits).
+  2. **Command popover open?** Enter runs the highlighted command.
+  3. **Nothing open?** Enter submits the message (textarea's native `onSubmit`).
+  4. **Shift+Enter** always inserts a newline (via `keyBindings`).
+  The two popovers each add their own Ctrl+C-dismiss branch to the
+  `useLayer("chatTextArea")` handler (file-mention checked first), so Ctrl+C
+  closes the top popover before clearing the buffer before quitting. Cursor-aware
+  `@`-token detection + splicing lives in `lib/file-mentions.ts`
+  (`activeMention`/`insertMention`); the caret comes from the textarea ref's
+  `cursorOffset`.
 - **`<input>` fires `onInput` per keystroke, `onChange` only on submit.** For live
   filtering (a search box) use `onInput` (per-keystroke, passes the value string);
   `onChange`/`onSubmit` fire on Enter. See `components/dialog/search-list-dialog.tsx`.

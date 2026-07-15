@@ -7,10 +7,13 @@ import { useChatConfig } from "../../lib/chat-config.tsx";
 import { useDialog } from "../dialog/dialog.tsx";
 import { useChatCommands } from "../../hooks/use-chat-commands.ts";
 import { useCommandPopover } from "../../hooks/use-command-popover.ts";
+import { useFileMentionPopover } from "../../hooks/use-file-mention-popover.ts";
+import { activeMention, insertMention } from "../../lib/file-mentions.ts";
 import { useLayer, useLayerContext } from "../../lib/layer.tsx";
 import { modeColor, mutedColor } from "../../lib/theme.ts";
 import { Border } from "../border.tsx";
 import { CommandPopover } from "./command-popover.tsx";
+import { FileMentionPopover } from "./file-mention-popover.tsx";
 
 type ChatTextAreaProps = {
   placeholder?: string;
@@ -50,16 +53,21 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
   const { activeDialog } = useDialog();
   const { executeChatCommand } = useChatCommands();
   const popover = useCommandPopover();
+  const fileMention = useFileMentionPopover();
   const { topLayer } = useLayerContext();
   const activeMode = modeByName(mode);
 
-  // Base layer of the prompt. On Ctrl+C: close the palette if open, else clear a
-  // non-empty buffer, else return false so the app-quit fallback fires. Reads
-  // `popover.open`/`ref.current` live — `useLayer` refreshes the handler each
-  // render, so there's no stale `popover.open`.
+  // Base layer of the prompt. On Ctrl+C: dismiss whichever popover is open
+  // (file-mention first, then command palette), else clear a non-empty buffer,
+  // else return false so the app-quit fallback fires. Reads `*.open`/`ref.current`
+  // live — `useLayer` refreshes the handler each render, so no stale open-state.
   useLayer("chatTextArea", {
     z: 10,
     onKey: () => {
+      if (fileMention.open) {
+        fileMention.close();
+        return true;
+      }
       if (popover.open) {
         popover.close();
         return true;
@@ -79,6 +87,23 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
     executeChatCommand(command.name);
   };
 
+  // Shared by Enter and mouse click: splice the picked path in place of the
+  // `@query` token and close the popover — never submit. Recomputes the mention
+  // from the live buffer + caret so the splice matches exactly what the user sees.
+  const runPick = (path: string) => {
+    const el = ref.current;
+    if (!el) return;
+    const text = el.plainText;
+    const caret = el.cursorOffset ?? text.length;
+    const mention = activeMention(text, caret);
+    if (mention) {
+      const result = insertMention(text, mention, path);
+      el.setText(result.text);
+      el.cursorOffset = result.caret;
+    }
+    fileMention.close();
+  };
+
   // One global handler drives both mode-cycling and the palette. Global handlers
   // dispatch BEFORE the focused textarea's own key processing, so `preventDefault`
   // here stops the textarea acting on a key (cursor move / submit), and — because
@@ -88,6 +113,43 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
     // A dialog is open (and owns the keyboard) — the palette can't be open here
     // and Tab must not cycle the mode behind the overlay.
     if (activeDialog !== null) return;
+    // File-mention popover wins Enter first (contract: file-mention → command →
+    // submit). It and the command palette are mutually exclusive in practice — a
+    // command buffer starts with "/" and has no space; a mention needs a space
+    // before "@" — but the explicit order documents the precedence.
+    if (fileMention.open) {
+      switch (key.name) {
+        case "up":
+          fileMention.moveSelection(-1);
+          key.preventDefault();
+          return;
+        case "down":
+          fileMention.moveSelection(1);
+          key.preventDefault();
+          return;
+        case "return": {
+          // Insert the highlighted path (resolved from a ref, so a fast Enter
+          // can't fire a stale selection) — never submit the message.
+          const path = fileMention.resolveSelected();
+          key.preventDefault();
+          key.stopPropagation();
+          if (path) runPick(path);
+          return;
+        }
+        case "escape":
+          fileMention.close();
+          key.preventDefault();
+          key.stopPropagation();
+          return;
+        case "tab":
+          // Don't cycle mode while the popover is open.
+          key.preventDefault();
+          key.stopPropagation();
+          return;
+        default:
+          return; // let typing/backspace fall through to the textarea
+      }
+    }
     if (popover.open) {
       switch (key.name) {
         case "up":
@@ -144,6 +206,14 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
             onRun={runCommand}
           />
         )}
+        {fileMention.open && (
+          <FileMentionPopover
+            files={fileMention.filtered}
+            selectedIndex={fileMention.selectedIndex}
+            onHover={fileMention.select}
+            onPick={runPick}
+          />
+        )}
         <Border color={barColor}>
           <box flexDirection="column" paddingY={1} paddingRight={1}>
             <textarea
@@ -160,8 +230,15 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
                 { name: "return", action: "submit" },
                 { name: "return", shift: true, action: "newline" },
               ]}
-              // Track the buffer live so the palette can open/filter as you type.
-              onContentChange={() => popover.onInput(ref.current?.plainText ?? "")}
+              // Track the buffer live so both popovers can open/filter as you
+              // type. The command palette reads the whole buffer; the file
+              // mention reads the `@`-token under the caret (`cursorOffset`).
+              onContentChange={() => {
+                const el = ref.current;
+                const text = el?.plainText ?? "";
+                popover.onInput(text);
+                fileMention.onInput(text, el?.cursorOffset ?? text.length);
+              }}
               onSubmit={() => {
                 const value = ref.current?.plainText ?? "";
                 ref.current?.setText("");

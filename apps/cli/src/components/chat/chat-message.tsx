@@ -3,6 +3,7 @@ import { isToolUIPart, getToolName } from "ai";
 import type { ToolUIPart } from "ai";
 import { toolSchemas, type ToolName } from "nightcode-ai";
 import { DEFAULT_MODE, type CodingAgentUIMessage } from "nightcode-ai/client";
+import { parseFileContextPath } from "../../lib/file-mentions.ts";
 import { errorColor, mutedColor, modeColor } from "../../lib/theme.ts";
 import { Border } from "../border.tsx";
 
@@ -52,6 +53,13 @@ function RoleLabel({ kind }: { kind: MessageKind }) {
  */
 function Part({ part }: { part: MessagePart }) {
   if (part.type === "text") {
+    // A `@file` mention resolves to an inlined `<file path="…">…</file>` context
+    // part (see buildUserParts). The model gets the full contents; the transcript
+    // collapses it to a compact chip so the user's turn stays readable.
+    const filePath = parseFileContextPath(part.text);
+    if (filePath !== null) {
+      return <text attributes={TextAttributes.DIM}>▤ {filePath}</text>;
+    }
     return <text>{part.text}</text>;
   }
 
