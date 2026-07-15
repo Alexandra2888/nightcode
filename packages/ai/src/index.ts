@@ -32,3 +32,16 @@ export {
   messageMetadataSchema,
 } from "./modes.ts";
 export type { ModeConfig, ModeName, MessageMetadata } from "./modes.ts";
+
+export {
+  codingAgentModels,
+  defaultCodingAgentModelId,
+  getCodingAgentModel,
+  getCodingAgentProviderOptions,
+} from "./models.ts";
+export type {
+  CodingAgentModel,
+  CodingAgentModelId,
+  CodingAgentProvider,
+  CodingAgentProviderOptions,
+} from "./models.ts";

@@ -4,10 +4,14 @@
 // execution — see the doc comment in `tools/toolset.ts` for why, and why
 // approval is a CLI concern rather than a server-side `toolApproval`.
 import { ToolLoopAgent, stepCountIs } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
 import type { ToolName } from "./types.ts";
 import { codingTools } from "./tools/toolset.ts";
 import { getSystemInstructions, modeByName, type ModeName } from "./modes.ts";
+import {
+  defaultCodingAgentModelId,
+  getCodingAgentProviderOptions,
+} from "./models.ts";
+import { createCodingAgentLanguageModel } from "./models.server.ts";
 
 /**
  * The FULL tool set — every coding tool, regardless of mode. Two jobs need it:
@@ -39,23 +43,29 @@ export function getCodingToolsForMode(mode: ModeName): Partial<typeof codingTool
  * because the mode is a per-request decision — the chat route calls this per
  * turn with the mode the CLI selected.
  *
- * Uses Haiku 4.5 — cheapest/fastest for testing. Extended thinking is `enabled`
- * with an explicit budget: `adaptive` is rejected by claude-haiku-4-5 (needs
- * Opus 4.7+), while `enabled` works on Haiku and yields the same reasoning parts.
+ * The model and its provider options come from the model registry's default
+ * (`defaultCodingAgentModelId` — the first entry in `models.ts`) rather than an
+ * inline literal, so the registry stays the single source of truth for which
+ * models exist. A per-request `modelId` argument is a later step; today this
+ * always resolves to the default (Haiku 4.5 with extended thinking enabled).
  * `stepCountIs(20)` leaves headroom for a realistic read → edit → read loop.
  */
 export function createCodingAgent(mode: ModeName) {
+  const modelId = defaultCodingAgentModelId;
   return new ToolLoopAgent({
-    model: anthropic("claude-haiku-4-5"),
+    model: createCodingAgentLanguageModel(modelId),
     instructions: getSystemInstructions(mode),
     tools: getCodingToolsForMode(mode),
     stopWhen: stepCountIs(20),
     maxOutputTokens: 4096,
-    providerOptions: {
-      anthropic: { thinking: { type: "enabled", budgetTokens: 1024 } },
-    },
+    providerOptions: getCodingAgentProviderOptions(modelId),
   });
 }
+
+// The provider factory (turns a registry id into a live language model) lives in
+// the server-only half of the registry; re-exported here so `nightcode-ai/server`
+// is the single place the server imports agent/model construction from.
+export { createCodingAgentLanguageModel } from "./models.server.ts";
 
 // The end-to-end UI message type. Defined in `tools/toolset.ts` (derived from the
 // FULL tool set, not any mode's subset) and re-exported here for the server; the
