@@ -12,6 +12,7 @@
 // Provider options are stored PER MODEL, not per provider: not every Anthropic
 // model supports extended thinking, and OpenAI uses `reasoningEffort` rather than
 // `thinking`, so the registry stays honest about per-model capabilities.
+import { z } from "zod";
 import type { JSONValue } from "ai";
 
 /** The providers we can build a language model for (see `models.server.ts`). */
@@ -100,6 +101,24 @@ export function getCodingAgentProviderOptions(
   return getCodingAgentModel(id).providerOptions;
 }
 
-// Slotting in here in later steps (this file stays the single source of truth):
-// `codingAgentModelIdSchema` — a `z.enum` over the ids for server-side request
-// validation — and `getCodingAgentProviderLabel` for the `/model` picker's label.
+const modelIds = codingAgentModels.map((m) => m.id) as [
+  CodingAgentModelId,
+  ...CodingAgentModelId[],
+];
+
+/**
+ * Validates a coding-agent model id off the wire (server request body). Mirrors
+ * `modeSchema` — a `z.enum` over the registry ids — so the server rejects an
+ * unknown model at validation (400) rather than deep inside the handler.
+ */
+export const codingAgentModelIdSchema = z.enum(modelIds);
+
+const providerLabels: Record<CodingAgentProvider, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+};
+
+/** Human label for a model's provider, e.g. "Anthropic" — for the `/model` picker. */
+export function getCodingAgentProviderLabel(id: CodingAgentModelId): string {
+  return providerLabels[getCodingAgentModel(id).provider];
+}

@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { TextAttributes, type TextareaRenderable } from "@opentui/core";
 import { useKeyboard } from "@opentui/react";
-import { modeByName } from "nightcode-ai/client";
+import { getCodingAgentModel, modeByName } from "nightcode-ai/client";
 import type { ChatCommand } from "../../lib/chat-commands.ts";
 import { useChatConfig } from "../../lib/chat-config.tsx";
 import { useDialog } from "../dialog/dialog.tsx";
@@ -49,7 +49,7 @@ type ChatTextAreaProps = {
  */
 export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps) {
   const ref = useRef<TextareaRenderable>(null);
-  const { mode, cycle } = useChatConfig();
+  const { mode, cycle, modelId } = useChatConfig();
   const { anyOpen } = useDialog();
   const { theme } = useTheme();
   const { executeChatCommand } = useChatCommands();
@@ -57,6 +57,7 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
   const fileMention = useFileMentionPopover();
   const { topLayer } = useLayerContext();
   const activeMode = modeByName(mode);
+  const activeModel = getCodingAgentModel(modelId);
 
   // Base layer of the prompt. On Ctrl+C: dismiss whichever popover is open
   // (file-mention first, then command palette), else clear a non-empty buffer,
@@ -251,12 +252,19 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
                 onSubmit(value);
               }}
             />
-            <text fg={barColor}>{activeMode.label}</text>
+            {/* Mode (colored by the active mode) on the left; the selected model
+                (dim) on the right — changed via the `/model` picker. */}
+            <box flexDirection="row" justifyContent="space-between">
+              <text fg={barColor}>{activeMode.label}</text>
+              <text attributes={TextAttributes.DIM}>{activeModel.label}</text>
+            </box>
           </box>
         </Border>
       </box>
       <text attributes={TextAttributes.DIM}>
-        {hint ? `tab to switch mode · ${hint}` : "tab to switch mode"}
+        {hint
+          ? `tab to switch mode · /model to switch model · ${hint}`
+          : "tab to switch mode · /model to switch model"}
       </text>
     </box>
   );

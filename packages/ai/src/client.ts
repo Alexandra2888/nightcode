@@ -21,6 +21,17 @@ export type { CodingAgentUIMessage } from "./tools/toolset.ts";
 export { DEFAULT_MODE, cycleMode, modeByName, messageMetadataSchema } from "./modes.ts";
 export type { ModeConfig, ModeName, MessageMetadata } from "./modes.ts";
 
+// The model surface the CLI needs to display and pick a coding-agent model (the
+// `/model` picker + the text-area label). SDK-free from the shared registry, so
+// pulling it through the client entry adds no AI SDK to the CLI bundle.
+export {
+  codingAgentModels,
+  defaultCodingAgentModelId,
+  getCodingAgentModel,
+  getCodingAgentProviderLabel,
+} from "./models.ts";
+export type { CodingAgentModel, CodingAgentModelId } from "./models.ts";
+
 /** A mutating tool call awaiting the user's approve/deny decision in the TUI. */
 export type PendingApproval = {
   id: string;

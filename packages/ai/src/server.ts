@@ -10,6 +10,7 @@ import { getSystemInstructions, modeByName, type ModeName } from "./modes.ts";
 import {
   defaultCodingAgentModelId,
   getCodingAgentProviderOptions,
+  type CodingAgentModelId,
 } from "./models.ts";
 import { createCodingAgentLanguageModel } from "./models.server.ts";
 
@@ -43,15 +44,16 @@ export function getCodingToolsForMode(mode: ModeName): Partial<typeof codingTool
  * because the mode is a per-request decision — the chat route calls this per
  * turn with the mode the CLI selected.
  *
- * The model and its provider options come from the model registry's default
- * (`defaultCodingAgentModelId` — the first entry in `models.ts`) rather than an
- * inline literal, so the registry stays the single source of truth for which
- * models exist. A per-request `modelId` argument is a later step; today this
- * always resolves to the default (Haiku 4.5 with extended thinking enabled).
- * `stepCountIs(20)` leaves headroom for a realistic read → edit → read loop.
+ * The model and its provider options come from the model registry (`models.ts`),
+ * the single source of truth for which models exist. `modelId` is the model the
+ * CLI selected via `/model` (validated on the wire by `codingAgentModelIdSchema`)
+ * and defaults to the registry default when a request omits it. `stepCountIs(20)`
+ * leaves headroom for a realistic read → edit → read loop.
  */
-export function createCodingAgent(mode: ModeName) {
-  const modelId = defaultCodingAgentModelId;
+export function createCodingAgent(
+  mode: ModeName,
+  modelId: CodingAgentModelId = defaultCodingAgentModelId,
+) {
   return new ToolLoopAgent({
     model: createCodingAgentLanguageModel(modelId),
     instructions: getSystemInstructions(mode),

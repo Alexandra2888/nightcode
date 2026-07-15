@@ -62,6 +62,11 @@ export const chatCommands: ChatCommand[] = [
     execute: (ctx) => ctx.openDialog(DIALOG_IDS.theme),
   },
   {
+    name: "/model",
+    description: "Change the model",
+    execute: (ctx) => ctx.openDialog(DIALOG_IDS.model),
+  },
+  {
     name: "/login",
     description: "Sign in with your browser",
     execute: (ctx) => ctx.login(),

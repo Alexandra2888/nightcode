@@ -59,9 +59,13 @@ export function ChatScreen() {
   // home screen or Tab-toggled here via `ChatTextArea`). `modeRef` mirrors it so
   // the transport can read the current mode on every request without being
   // rebuilt — see the `body` function below.
-  const { mode } = useChatConfig();
+  const { mode, modelId } = useChatConfig();
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  // Mirror the selected model too, so the transport `body` reads the CURRENT
+  // model on every request (including tool-loop resubmits) without being rebuilt.
+  const modelIdRef = useRef(modelId);
+  modelIdRef.current = modelId;
 
   // `useChat` manages the conversation. `DefaultChatTransport` POSTs the message
   // history as JSON; the hook owns its own request, so it can't go through the
@@ -76,7 +80,7 @@ export function ChatScreen() {
         api: client.chat[":sessionId"]
           .$url({ param: { sessionId: sessionId ?? "" } })
           .toString(),
-        body: () => ({ mode: modeRef.current }),
+        body: () => ({ mode: modeRef.current, modelId: modelIdRef.current }),
         // `useChat` owns this fetch, so it bypasses the RPC client's headers —
         // attach the bearer here too (resolved per request, like `body`), or the
         // chat stream posts unauthenticated. Refreshes are picked up per request.

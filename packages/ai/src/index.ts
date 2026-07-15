@@ -38,6 +38,8 @@ export {
   defaultCodingAgentModelId,
   getCodingAgentModel,
   getCodingAgentProviderOptions,
+  getCodingAgentProviderLabel,
+  codingAgentModelIdSchema,
 } from "./models.ts";
 export type {
   CodingAgentModel,

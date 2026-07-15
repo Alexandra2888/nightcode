@@ -7,6 +7,7 @@ import { ChatConfigProvider } from "./lib/chat-config.tsx";
 import { DialogProvider } from "./components/dialog/dialog.tsx";
 import { SessionsDialog } from "./components/dialog/sessions-dialog.tsx";
 import { ThemeDialog } from "./components/dialog/theme-dialog.tsx";
+import { ModelDialog } from "./components/dialog/model-dialog.tsx";
 import { LayerProvider } from "./lib/layer.tsx";
 import { ToastProvider } from "./lib/toast.tsx";
 import { Toaster } from "./components/toast/toaster.tsx";
@@ -32,6 +33,7 @@ function RouterLayout() {
     <>
       <SessionsDialog />
       <ThemeDialog />
+      <ModelDialog />
       <Toaster />
       <Outlet />
     </>

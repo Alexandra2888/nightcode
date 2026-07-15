@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { safeValidateUIMessages } from "ai";
-import { modeSchema, DEFAULT_MODE, messageMetadataSchema } from "nightcode-ai";
+import {
+  modeSchema,
+  DEFAULT_MODE,
+  messageMetadataSchema,
+  codingAgentModelIdSchema,
+  defaultCodingAgentModelId,
+} from "nightcode-ai";
 import { allCodingTools, type CodingAgentUIMessage } from "nightcode-ai/server";
 
 // Request body for POST /chat. The client (AI SDK's `useChat`) POSTs the full
@@ -43,6 +49,10 @@ export const chatBody = z.object({
   // system prompt + tool allow-list via `codingAgent`'s `prepareCall`. Defaults
   // so older clients that don't send it still work.
   mode: modeSchema.default(DEFAULT_MODE),
+  // The coding-agent model the CLI selected (via `/model`). Validated against the
+  // registry ids, so an unknown model is a 400 here rather than a failure deep in
+  // the handler. Defaults so a client that doesn't send it still works.
+  modelId: codingAgentModelIdSchema.default(defaultCodingAgentModelId),
 });
 
 // Param for POST /chat/:sessionId — the session the streamed turn belongs to.

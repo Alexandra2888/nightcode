@@ -55,7 +55,7 @@ export const chatRoute = new Hono<{ Variables: AuthVariables }>().post(
   async (c) => {
     const { userId } = c.get("auth");
     const { sessionId } = c.req.valid("param");
-    const { messages, mode } = c.req.valid("json");
+    const { messages, mode, modelId } = c.req.valid("json");
 
     // The session must exist AND belong to the signed-in user (created by
     // `POST /sessions`). `findFirst` with `userId` makes another user's session
@@ -91,7 +91,9 @@ export const chatRoute = new Hono<{ Variables: AuthVariables }>().post(
     const modelMessages = await convertToModelMessages(messages, {
       tools: allCodingTools,
     });
-    const result = await createCodingAgent(mode).stream({ prompt: modelMessages });
+    const result = await createCodingAgent(mode, modelId).stream({
+      prompt: modelMessages,
+    });
 
     // Encode the reply as a UI-message stream the CLI's `useChat` consumes.
     // `originalMessages` + `generateMessageId` give the response message a stable

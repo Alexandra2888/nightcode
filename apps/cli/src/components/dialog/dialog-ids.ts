@@ -5,7 +5,8 @@
 export const DIALOG_IDS = {
   sessions: "sessions",
   theme: "theme",
+  model: "model",
 } as const;
 
-/** The union of valid dialog ids (`"sessions" | "theme"`). */
+/** The union of valid dialog ids (`"sessions" | "theme" | "model"`). */
 export type DialogId = (typeof DIALOG_IDS)[keyof typeof DIALOG_IDS];

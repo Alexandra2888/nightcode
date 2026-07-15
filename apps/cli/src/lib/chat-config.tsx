@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { DEFAULT_MODE, cycleMode, type ModeName } from "nightcode-ai/client";
+import {
+  DEFAULT_MODE,
+  cycleMode,
+  defaultCodingAgentModelId,
+  type ModeName,
+  type CodingAgentModelId,
+} from "nightcode-ai/client";
 
 /**
  * Cross-route chat UI state. The active mode has to be readable and writable
@@ -17,6 +23,10 @@ type ChatConfig = {
   setMode: (mode: ModeName) => void;
   /** Advance to the next mode (+1) / previous (-1), cycling across all modes. */
   cycle: (dir: 1 | -1) => void;
+  /** The active coding-agent model (chosen via the `/model` picker). */
+  modelId: CodingAgentModelId;
+  /** Set the model directly. */
+  setModelId: (id: CodingAgentModelId) => void;
 };
 
 const ChatConfigContext = createContext<ChatConfig | null>(null);
@@ -26,9 +36,16 @@ export function ChatConfigProvider({ children }: { children: ReactNode }) {
   // active mode is a per-session decision, not a saved attribute of the chat.
   const [mode, setMode] = useState<ModeName>(DEFAULT_MODE);
   const cycle = (dir: 1 | -1) => setMode((m) => cycleMode(m, dir));
+  // The model is likewise a per-session choice starting at the registry default,
+  // shared across both screens and the text-area label via this same provider.
+  const [modelId, setModelId] = useState<CodingAgentModelId>(
+    defaultCodingAgentModelId,
+  );
 
   return (
-    <ChatConfigContext.Provider value={{ mode, setMode, cycle }}>
+    <ChatConfigContext.Provider
+      value={{ mode, setMode, cycle, modelId, setModelId }}
+    >
       {children}
     </ChatConfigContext.Provider>
   );
