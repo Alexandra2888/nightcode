@@ -15,7 +15,7 @@ import {
   type PendingApproval,
   type CodingAgentUIMessage,
 } from "nightcode-ai/client";
-import { client } from "../lib/client.ts";
+import { client, getAuthHeaders } from "../lib/client.ts";
 import { chatNavState } from "../lib/nav-state.ts";
 import { useChatConfig } from "../lib/chat-config.tsx";
 import { useToast } from "../lib/toast.tsx";
@@ -69,6 +69,10 @@ export function ChatScreen() {
           .$url({ param: { sessionId: sessionId ?? "" } })
           .toString(),
         body: () => ({ mode: modeRef.current }),
+        // `useChat` owns this fetch, so it bypasses the RPC client's headers —
+        // attach the bearer here too (resolved per request, like `body`), or the
+        // chat stream posts unauthenticated. Refreshes are picked up per request.
+        headers: getAuthHeaders,
       }),
     [sessionId],
   );

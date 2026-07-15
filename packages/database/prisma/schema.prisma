@@ -1,7 +1,9 @@
 // Prisma schema for nightcode's conversation store.
 //
 // Two models: a `Session` (a conversation container) owns many `Message` rows.
-// There is no users table yet. A message mirrors the AI SDK `UIMessage`
+// A session is scoped to a Clerk `userId` (a plain string — user records live in
+// Clerk, so there's no users table here). A message reaches the user only via its
+// parent session. A message mirrors the AI SDK `UIMessage`
 // (id + role + parts + optional metadata); `parts` and `metadata` are stored as
 // `Json` verbatim rather than normalized, because the AI SDK owns and evolves
 // the shape of `parts` — the same reason `routes/chat/schema.ts` validates via
@@ -33,11 +35,15 @@ enum Mode {
 
 model Session {
   id        String   @id @default(cuid())
+  // Clerk user id — every session belongs to exactly one signed-in user. Indexed
+  // because the session list and every ownership check filter on it.
+  userId    String
   title     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   messages  Message[]
 
+  @@index([userId])
   @@map("sessions")
 }
 

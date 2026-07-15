@@ -25,6 +25,11 @@ export type ChatCommandContext = {
   openDialog: (id: DialogId) => void;
   /** Pop a toast notification. Backed by the toast layer (see `lib/toast.tsx`). */
   toast: (variant: ToastVariant, message: string) => void;
+  /** Start the browser OAuth sign-in flow. Fire-and-forget: progress and the
+   *  final outcome are reported through `toast` (see `lib/auth/login.ts`). */
+  login: () => void;
+  /** Sign out — clear the local auth (and, from Phase 3, revoke server-side). */
+  logout: () => void;
 };
 
 export type ChatCommand = {
@@ -55,6 +60,16 @@ export const chatCommands: ChatCommand[] = [
     name: "/theme",
     description: "Change the color theme",
     execute: (ctx) => ctx.openDialog(DIALOG_IDS.theme),
+  },
+  {
+    name: "/login",
+    description: "Sign in with your browser",
+    execute: (ctx) => ctx.login(),
+  },
+  {
+    name: "/logout",
+    description: "Sign out",
+    execute: (ctx) => ctx.logout(),
   },
   {
     name: "/exit",

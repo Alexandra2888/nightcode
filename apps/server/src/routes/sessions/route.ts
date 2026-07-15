@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { prisma } from "nightcode-database/client";
+import type { AuthVariables } from "../../middleware/auth.ts";
 import { createSessionBody, sessionParam } from "./schema.ts";
 
 /**
@@ -19,20 +20,23 @@ import { createSessionBody, sessionParam } from "./schema.ts";
  * chat endpoint drop the old "optional sessionId in the body / echo it back in a
  * header" hack.
  */
-export const sessionsRoute = new Hono()
+export const sessionsRoute = new Hono<{ Variables: AuthVariables }>()
   .post("/", zValidator("json", createSessionBody), async (c) => {
+    const { userId } = c.get("auth");
     const { prompt } = c.req.valid("json");
     // Title = first line of the opening prompt, truncated. Cheap, and keeps a
     // future session list from being all "Untitled".
     const title = prompt.split("\n")[0].slice(0, 60);
-    const session = await prisma.session.create({ data: { title } });
+    const session = await prisma.session.create({ data: { title, userId } });
     return c.json({ id: session.id }, 201);
   })
   .get("/", async (c) => {
-    // The session list backing the CLI's `/sessions` dialog. Most-recent first so
-    // the last thing worked on is at the top. `updatedAt` disambiguates the many
-    // same-titled sessions ("Untitled", repeated prompts) in the CLI's subtitle.
+    const { userId } = c.get("auth");
+    // The session list backing the CLI's `/sessions` dialog, scoped to the signed-in
+    // user. Most-recent first so the last thing worked on is at the top. `updatedAt`
+    // disambiguates the many same-titled sessions ("Untitled", repeated prompts).
     const sessions = await prisma.session.findMany({
+      where: { userId },
       orderBy: { updatedAt: "desc" },
     });
     return c.json({
@@ -44,8 +48,11 @@ export const sessionsRoute = new Hono()
     });
   })
   .get("/:id/messages", zValidator("param", sessionParam), async (c) => {
+    const { userId } = c.get("auth");
     const { id } = c.req.valid("param");
-    const session = await prisma.session.findUnique({ where: { id } });
+    // `findFirst` (not `findUnique`) so ownership is part of the lookup: another
+    // user's session id reads as "not found", never leaking its messages.
+    const session = await prisma.session.findFirst({ where: { id, userId } });
     if (!session) return c.json({ error: "Session not found" }, 404);
 
     const rows = await prisma.message.findMany({

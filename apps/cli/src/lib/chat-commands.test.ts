@@ -12,11 +12,15 @@ function spyContext() {
     navigate: string[];
     openDialog: string[];
     toast: { variant: string; message: string }[];
+    login: number;
+    logout: number;
   } = {
     exit: 0,
     navigate: [],
     openDialog: [],
     toast: [],
+    login: 0,
+    logout: 0,
   };
   const ctx: ChatCommandContext = {
     exit: () => {
@@ -25,6 +29,12 @@ function spyContext() {
     navigate: (to) => calls.navigate.push(to),
     openDialog: (id) => calls.openDialog.push(id),
     toast: (variant, message) => calls.toast.push({ variant, message }),
+    login: () => {
+      calls.login += 1;
+    },
+    logout: () => {
+      calls.logout += 1;
+    },
   };
   return { ctx, calls };
 }
@@ -91,5 +101,19 @@ describe("command execution", () => {
     const { ctx, calls } = spyContext();
     matchChatCommand("/exit")?.execute(ctx);
     expect(calls.exit).toBe(1);
+  });
+
+  test("/login starts the sign-in flow", () => {
+    const { ctx, calls } = spyContext();
+    matchChatCommand("/login")?.execute(ctx);
+    expect(calls.login).toBe(1);
+    expect(calls.logout).toBe(0);
+  });
+
+  test("/logout signs out", () => {
+    const { ctx, calls } = spyContext();
+    matchChatCommand("/logout")?.execute(ctx);
+    expect(calls.logout).toBe(1);
+    expect(calls.login).toBe(0);
   });
 });

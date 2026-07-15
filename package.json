@@ -9,9 +9,9 @@
   ],
   "scripts": {
     "dev:server": "bun --hot run apps/server/src/index.ts",
-    "dev:cli": "bun --watch run apps/cli/src/index.tsx",
+    "dev:cli": "bun --watch --env-file=.env run apps/cli/src/index.tsx",
     "start:server": "bun run apps/server/src/index.ts",
-    "start:cli": "bun run apps/cli/src/index.tsx",
+    "start:cli": "bun --env-file=.env run apps/cli/src/index.tsx",
     "db:generate": "cd packages/database && bunx --bun prisma generate",
     "db:push": "cd packages/database && bunx --bun prisma db push",
     "db:studio": "cd packages/database && bunx --bun prisma studio",

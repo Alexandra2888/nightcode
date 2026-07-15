@@ -14,11 +14,12 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@clerk/backend": "^3.11.5",
     "@hono/zod-validator": "^0.8.0",
     "ai": "^7.0.15",
+    "hono": "latest",
     "nightcode-ai": "workspace:*",
     "nightcode-database": "workspace:*",
-    "hono": "latest",
     "zod": "^4.4.3"
   }
 }

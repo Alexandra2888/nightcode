@@ -8,6 +8,7 @@ import {
   allCodingTools,
   type CodingAgentUIMessage,
 } from "nightcode-ai/server";
+import type { AuthVariables } from "../../middleware/auth.ts";
 import { chatBody, chatParam } from "./schema.ts";
 
 /**
@@ -47,17 +48,21 @@ import { chatBody, chatParam } from "./schema.ts";
  * That hook owns its own request, so this route is reached by URL rather than
  * the Hono RPC client.
  */
-export const chatRoute = new Hono().post(
+export const chatRoute = new Hono<{ Variables: AuthVariables }>().post(
   "/:sessionId",
   zValidator("param", chatParam),
   zValidator("json", chatBody),
   async (c) => {
+    const { userId } = c.get("auth");
     const { sessionId } = c.req.valid("param");
     const { messages, mode } = c.req.valid("json");
 
-    // The session must exist (created by `POST /sessions`). 404 if the client
-    // streams to an unknown/deleted session.
-    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    // The session must exist AND belong to the signed-in user (created by
+    // `POST /sessions`). `findFirst` with `userId` makes another user's session
+    // id — or an unknown/deleted one — read as 404.
+    const session = await prisma.session.findFirst({
+      where: { id: sessionId, userId },
+    });
     if (!session) return c.json({ error: "Session not found" }, 404);
 
     // Persist the newest message (the user's turn) before streaming, so it's
