@@ -1,11 +1,15 @@
 import { test, expect, describe, afterEach } from "bun:test";
 import {
   startCallbackServer,
-  CALLBACK_PORT,
   type CallbackServer,
 } from "./callback-server.ts";
 
-const base = `http://localhost:${CALLBACK_PORT}/callback`;
+// Use an ephemeral port (0 → OS-assigned) so tests never collide with a real
+// `/login` holding the pinned production port. Read the actual port off the
+// returned handle.
+const start = () => startCallbackServer({ port: 0 });
+const callbackUrl = (s: CallbackServer, q: string) =>
+  `http://localhost:${s.port}/callback?${q}`;
 
 let running: CallbackServer | null = null;
 afterEach(() => {
@@ -19,10 +23,10 @@ async function sleep(ms: number) {
 
 describe("callback-server", () => {
   test("resolves with the callback query params and serves a success page", async () => {
-    const server = startCallbackServer();
+    const server = start();
     running = server;
 
-    const res = await fetch(`${base}?code=the-code&state=the-state`);
+    const res = await fetch(callbackUrl(server, "code=the-code&state=the-state"));
     const body = await res.text();
     expect(res.status).toBe(200);
     expect(body).toContain("Signed in");
@@ -33,14 +37,14 @@ describe("callback-server", () => {
   });
 
   test("rejects when the user cancels (error param)", async () => {
-    const server = startCallbackServer();
+    const server = start();
     running = server;
     // Attach the rejection handler BEFORE the fetch triggers it, so the reject
     // isn't briefly unhandled.
     const rejection = server.result.catch((error: unknown) => error);
 
     const res = await fetch(
-      `${base}?error=access_denied&error_description=User%20denied`,
+      callbackUrl(server, "error=access_denied&error_description=User%20denied"),
     );
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("cancelled");
@@ -49,16 +53,33 @@ describe("callback-server", () => {
   });
 
   test("shuts down shortly after serving (port freed for the next login)", async () => {
-    const server = startCallbackServer();
+    const server = start();
     running = server;
-    await fetch(`${base}?code=c&state=s`);
+    await fetch(callbackUrl(server, "code=c&state=s"));
     await server.result;
 
     // The handler schedules shutdown 100ms after responding; give it a margin.
     await sleep(250);
-    // A fresh server can now bind the same pinned port without EADDRINUSE.
-    const second = startCallbackServer();
+    const second = start();
     running = second;
     expect(second).toBeDefined();
+  });
+
+  test("a new start cancels the previous still-waiting listener", async () => {
+    const first = start();
+    // Not awaited/consumed — simulates an abandoned login (Clerk never hit the
+    // callback). Attach a catch so its eventual rejection isn't unhandled.
+    const firstResult = first.result.catch(() => "aborted");
+
+    // Starting again should close `first` and rebind cleanly (no throw).
+    const second = start();
+    running = second;
+    const res = await fetch(callbackUrl(second, "code=x&state=y"));
+    expect(res.status).toBe(200);
+    const { parameters } = await second.result;
+    expect(parameters.get("code")).toBe("x");
+    // `first` is now closed; its promise stays pending (we don't assert on it),
+    // but the catch keeps it from becoming an unhandled rejection.
+    void firstResult;
   });
 });

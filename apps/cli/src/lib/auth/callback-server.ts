@@ -16,6 +16,9 @@ export type CallbackServer = {
   /** Resolves when Clerk redirects to `/callback`; rejects on an OAuth `error`
    *  (e.g. the user cancelled on the consent screen) or a timeout. */
   result: Promise<CallbackResult>;
+  /** The port actually bound (matches the requested port; useful for tests that
+   *  request an ephemeral one). */
+  port: number;
   /** Stop the loopback server. Idempotent. */
   close: () => void;
 };
@@ -42,6 +45,9 @@ let active: CallbackServer | null = null;
 
 export function startCallbackServer(opts?: {
   timeoutMs?: number;
+  /** Override the bound port. Production uses the pinned {@link CALLBACK_PORT};
+   *  tests pass `0` for an ephemeral port so they never fight a real /login. */
+  port?: number;
 }): CallbackServer {
   // Free the port from any abandoned prior attempt before binding.
   active?.close();
@@ -67,7 +73,7 @@ export function startCallbackServer(opts?: {
 
   try {
     server = Bun.serve({
-      port: CALLBACK_PORT,
+      port: opts?.port ?? CALLBACK_PORT,
       fetch(req) {
         const url = new URL(req.url);
         if (url.pathname !== CALLBACK_PATH) {
@@ -112,7 +118,11 @@ export function startCallbackServer(opts?: {
     close();
   }, opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
-  const handle: CallbackServer = { result, close };
+  // `server` is defined here — the catch above rethrows if `Bun.serve` failed.
+  // `server.port` is always a real TCP port at runtime (Bun types it as possibly
+  // undefined for unix sockets, which we never use); fall back defensively.
+  const boundPort = server!.port ?? opts?.port ?? CALLBACK_PORT;
+  const handle: CallbackServer = { result, port: boundPort, close };
   active = handle;
   return handle;
 }
