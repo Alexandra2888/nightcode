@@ -7,8 +7,8 @@
     "nightcode": "src/index.tsx"
   },
   "scripts": {
-    "dev": "bun --watch run src/index.tsx",
-    "start": "bun run src/index.tsx",
+    "dev": "bun --watch --env-file=../../.env run src/index.tsx",
+    "start": "bun --env-file=../../.env run src/index.tsx",
     "build": "bun build src/index.tsx --outdir dist --target bun --external '@opentui/*'"
   },
   "dependencies": {

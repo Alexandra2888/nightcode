@@ -1,3 +1,8 @@
+// Ensure the root .env's Clerk config is present regardless of how the CLI was
+// launched (per-app cwd, root script, etc.) — this side-effect import runs first,
+// before any other module evaluates. See lib/load-root-env.ts.
+import "./lib/load-root-env.ts";
+
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { App } from "./app.tsx";
