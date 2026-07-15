@@ -9,6 +9,8 @@
  *  `useChatCommands` hook supplies the real implementations (renderer.destroy,
  *  navigate). That keeps this module free of OpenTUI/React and unit-testable. */
 
+import { DIALOG_IDS, type DialogId } from "../components/dialog/dialog-ids.ts";
+
 /** The capabilities a command may use. The hook builds the concrete versions
  *  from `useRenderer()` / `useNavigate()`; commands stay ignorant of both. */
 export type ChatCommandContext = {
@@ -17,8 +19,9 @@ export type ChatCommandContext = {
   exit: () => void;
   /** Navigate to a route, e.g. `"/"` for the home screen. */
   navigate: (to: string) => void;
-  /** Open a dialog by id (see `DialogProvider`), e.g. `"sessions"`. */
-  openDialog: (id: string) => void;
+  /** Open a dialog by id — a `DialogId`, so the id can't drift from the dialog
+   *  component's `id` prop (see `dialog-ids.ts`). */
+  openDialog: (id: DialogId) => void;
 };
 
 export type ChatCommand = {
@@ -40,7 +43,12 @@ export const chatCommands: ChatCommand[] = [
   {
     name: "/sessions",
     description: "Open past sessions",
-    execute: (ctx) => ctx.openDialog("sessions"),
+    execute: (ctx) => ctx.openDialog(DIALOG_IDS.sessions),
+  },
+  {
+    name: "/theme",
+    description: "Change the color theme",
+    execute: (ctx) => ctx.openDialog(DIALOG_IDS.theme),
   },
   {
     name: "/exit",

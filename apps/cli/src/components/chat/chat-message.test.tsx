@@ -2,6 +2,7 @@ import { test, expect, afterEach } from "bun:test";
 import { testRender } from "@opentui/react/test-utils";
 import type { CodingAgentUIMessage } from "nightcode-ai/client";
 import { fileContextText } from "../../lib/file-mentions.ts";
+import { ThemeProvider } from "../../lib/theme/index.ts";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 
 // These exercise the message part-type branches that the text-only /chat
@@ -15,7 +16,10 @@ afterEach(() => {
 });
 
 async function frameFor(node: React.ReactNode) {
-  testSetup = await testRender(node, { width: 80, height: 24 });
+  testSetup = await testRender(<ThemeProvider>{node}</ThemeProvider>, {
+    width: 80,
+    height: 24,
+  });
   await testSetup.renderOnce();
   return testSetup.captureCharFrame();
 }

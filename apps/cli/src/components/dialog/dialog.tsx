@@ -7,7 +7,7 @@ import {
 } from "react";
 import { TextAttributes } from "@opentui/core";
 import { useKeyboard } from "@opentui/react";
-import { bgColor, mutedColor } from "../../lib/theme.ts";
+import { useTheme } from "../../lib/theme/index.ts";
 import { useLayer } from "../../lib/layer.tsx";
 
 /**
@@ -26,7 +26,9 @@ import { useLayer } from "../../lib/layer.tsx";
  * guard keeps it inert until it's actually shown. See `Dialog` below and the
  * `CLAUDE.md` note on RouterLayout.
  */
-type DialogContextValue = {
+/** The raw controller — one active dialog id at a time. Kept internal; consumers
+ *  read the scoped view from `useDialog(id)`, never the raw `activeDialog`. */
+type DialogState = {
   /** The id of the open dialog, or `null` when none is open. */
   activeDialog: string | null;
   /** Open the dialog with this id (closing any other). */
@@ -35,7 +37,21 @@ type DialogContextValue = {
   closeDialog: () => void;
 };
 
-const DialogContext = createContext<DialogContextValue | null>(null);
+/** The scoped view a component gets from `useDialog(id)`. */
+type DialogHandle = {
+  /** Whether *this* dialog (the passed `id`) is the active one. `false` when no
+   *  id is passed — an opener that isn't itself a dialog doesn't have an `open`. */
+  open: boolean;
+  /** Whether *any* dialog is open — for consumers that must stand down while a
+   *  dialog owns the keyboard (e.g. the text area disables Tab/palette). */
+  anyOpen: boolean;
+  /** Activate exactly one dialog by id (closing any other). */
+  openDialog: (id: string) => void;
+  /** Close whatever is open. */
+  closeDialog: () => void;
+};
+
+const DialogContext = createContext<DialogState | null>(null);
 
 export function DialogProvider({ children }: { children: ReactNode }) {
   const [activeDialog, setActiveDialog] = useState<string | null>(null);
@@ -48,13 +64,24 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Read the dialog controller. Throws if used outside `DialogProvider`. */
-export function useDialog(): DialogContextValue {
+/**
+ * Read the dialog controller, scoped to `id`. A dialog component passes its own
+ * id and reads `open` (am I the active one?); an opener (a slash command, the
+ * text area) calls it with no id and uses `openDialog`/`closeDialog`/`anyOpen`.
+ * The raw `activeDialog` state stays hidden so no caller compares ids by hand.
+ * Throws if used outside `DialogProvider`.
+ */
+export function useDialog(id?: string): DialogHandle {
   const ctx = useContext(DialogContext);
   if (!ctx) {
     throw new Error("useDialog must be used within a DialogProvider");
   }
-  return ctx;
+  return {
+    open: id != null && ctx.activeDialog === id,
+    anyOpen: ctx.activeDialog !== null,
+    openDialog: ctx.openDialog,
+    closeDialog: ctx.closeDialog,
+  };
 }
 
 /**
@@ -70,6 +97,7 @@ export function DialogOverlay({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const { theme } = useTheme();
   return (
     <box
       position="absolute"
@@ -79,7 +107,7 @@ export function DialogOverlay({
       height="100%"
       justifyContent="center"
       alignItems="center"
-      backgroundColor="#00000080"
+      backgroundColor={theme.dialog.backdrop}
       zIndex={100}
       onMouseDown={onClose}
     >
@@ -110,6 +138,7 @@ export function Dialog({
   children: ReactNode;
   width?: number;
 }) {
+  const { theme } = useTheme();
   // Top of the layer stack while open, so Ctrl+C closes the dialog (beating the
   // text-area's clear and the app-quit fallback). `DialogProvider` keeps only one
   // dialog open at a time, so a single "dialog" id is correct even though `Dialog`
@@ -144,8 +173,8 @@ export function Dialog({
         width={width}
         border
         borderStyle="rounded"
-        borderColor={mutedColor}
-        backgroundColor={bgColor}
+        borderColor={theme.dialog.border}
+        backgroundColor={theme.dialog.background}
         flexDirection="column"
         paddingX={2}
         paddingY={1}

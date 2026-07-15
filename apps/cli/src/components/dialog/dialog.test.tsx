@@ -1,7 +1,9 @@
 import { test, expect, afterEach } from "bun:test";
+import { useEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { LayerProvider } from "../../lib/layer.tsx";
-import { Dialog } from "./dialog.tsx";
+import { ThemeProvider } from "../../lib/theme/index.ts";
+import { Dialog, DialogProvider, useDialog } from "./dialog.tsx";
 
 // The `Dialog` primitive registers a high-z layer while open, so Ctrl+C closes it
 // (via `onClose`) instead of quitting the app, and does nothing while closed. We
@@ -18,13 +20,15 @@ afterEach(() => {
 
 async function mount(open: boolean, onClose: () => void) {
   testSetup = await testRender(
-    <LayerProvider>
-      <box height={24} width={80}>
-        <Dialog open={open} title="Fruits" onClose={onClose}>
-          <text>body</text>
-        </Dialog>
-      </box>
-    </LayerProvider>,
+    <ThemeProvider>
+      <LayerProvider>
+        <box height={24} width={80}>
+          <Dialog open={open} title="Fruits" onClose={onClose}>
+            <text>body</text>
+          </Dialog>
+        </box>
+      </LayerProvider>
+    </ThemeProvider>,
     // Mirror the app: Ctrl+C is routed by LayerProvider, not the built-in quit.
     { width: 80, height: 24, kittyKeyboard: true, exitOnCtrlC: false },
   );
@@ -68,4 +72,66 @@ test("a closed dialog is not registered, so Ctrl+C falls through to quit", async
   expect(closed).toBe(0); // closed dialog never registered its layer
   expect(destroyed).toBe(1); // nothing claimed Ctrl+C → app quits
   renderer.destroy = realDestroy;
+});
+
+// `useDialog(id)` is scoped: each caller sees `open` only for ITS id, plus a
+// shared `anyOpen`. `openDialog(id)` activates exactly one dialog, so opening a
+// second closes the first — the guarantee that opening `/theme` can't also open
+// the sessions dialog.
+
+/** Renders the scoped open-state of two ids plus anyOpen, running `steps`
+ *  (openDialog/closeDialog calls) once on mount. */
+function ScopeProbe({
+  steps,
+}: {
+  steps: (api: ReturnType<typeof useDialog>) => void;
+}) {
+  const a = useDialog("a");
+  const b = useDialog("b");
+  useEffect(() => {
+    steps(a);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <text>{`a=${a.open} b=${b.open} any=${a.anyOpen}`}</text>;
+}
+
+async function mountScope(steps: (api: ReturnType<typeof useDialog>) => void) {
+  testSetup = await testRender(
+    <DialogProvider>
+      <ScopeProbe steps={steps} />
+    </DialogProvider>,
+    { width: 40, height: 4 },
+  );
+  await testSetup.renderOnce();
+  return testSetup;
+}
+
+test("useDialog: nothing is open initially", async () => {
+  const { waitForFrame } = await mountScope(() => {});
+  const frame = await waitForFrame((f) => f.includes("a="));
+  expect(frame).toContain("a=false b=false any=false");
+});
+
+test("useDialog: opening one id scopes open to that id and sets anyOpen", async () => {
+  const { waitForFrame } = await mountScope((api) => api.openDialog("a"));
+  const frame = await waitForFrame((f) => f.includes("a=true"));
+  expect(frame).toContain("a=true b=false any=true");
+});
+
+test("useDialog: opening a second id closes the first (exactly one active)", async () => {
+  const { waitForFrame } = await mountScope((api) => {
+    api.openDialog("a");
+    api.openDialog("b");
+  });
+  const frame = await waitForFrame((f) => f.includes("b=true"));
+  expect(frame).toContain("a=false b=true any=true");
+});
+
+test("useDialog: closeDialog clears everything", async () => {
+  const { waitForFrame } = await mountScope((api) => {
+    api.openDialog("a");
+    api.closeDialog();
+  });
+  const frame = await waitForFrame((f) => f.includes("any=false"));
+  expect(frame).toContain("a=false b=false any=false");
 });

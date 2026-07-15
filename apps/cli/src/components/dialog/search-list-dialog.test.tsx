@@ -2,6 +2,7 @@ import { test, expect, afterEach } from "bun:test";
 import { useEffect } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { LayerProvider } from "../../lib/layer.tsx";
+import { ThemeProvider } from "../../lib/theme/index.ts";
 import { DialogProvider, useDialog } from "./dialog.tsx";
 import { SearchListDialog } from "./search-list-dialog.tsx";
 
@@ -21,8 +22,14 @@ afterEach(() => {
 
 const FRUITS = ["apple", "apricot", "banana", "cherry"];
 
-/** Opens the dialog on mount and records selections. */
-function Harness({ onSelect }: { onSelect: (value: string) => void }) {
+/** Opens the dialog on mount and records selections (and, optionally, highlights). */
+function Harness({
+  onSelect,
+  onHighlight,
+}: {
+  onSelect: (value: string) => void;
+  onHighlight?: (value: string) => void;
+}) {
   const { openDialog } = useDialog();
   useEffect(() => {
     openDialog("fruits");
@@ -36,19 +43,25 @@ function Harness({ onSelect }: { onSelect: (value: string) => void }) {
       itemKey={(f) => f}
       renderItem={(f) => <text>{f}</text>}
       onSelect={onSelect}
+      onHighlight={onHighlight}
     />
   );
 }
 
-async function mountDialog(onSelect: (value: string) => void = () => {}) {
+async function mountDialog(
+  onSelect: (value: string) => void = () => {},
+  onHighlight?: (value: string) => void,
+) {
   testSetup = await testRender(
-    <LayerProvider>
-      <DialogProvider>
-        <box height={24} width={80}>
-          <Harness onSelect={onSelect} />
-        </box>
-      </DialogProvider>
-    </LayerProvider>,
+    <ThemeProvider>
+      <LayerProvider>
+        <DialogProvider>
+          <box height={24} width={80}>
+            <Harness onSelect={onSelect} onHighlight={onHighlight} />
+          </box>
+        </DialogProvider>
+      </LayerProvider>
+    </ThemeProvider>,
     { width: 80, height: 24, kittyKeyboard: true },
   );
   await testSetup.renderOnce();
@@ -84,6 +97,34 @@ test("Enter chooses the highlighted item and closes the dialog", async () => {
   await mockInput.pressKeys(["ARROW_DOWN", "RETURN"], KEY_DELAY_MS);
   await waitForFrame((f) => !f.includes("Fruits")); // dialog closed on select
   expect(chosen.value).toBe("apricot");
+});
+
+test("onHighlight fires for the top row on open and follows the arrows", async () => {
+  const highlights: string[] = [];
+  const { mockInput, waitForFrame } = await mountDialog(
+    () => {},
+    (v) => highlights.push(v),
+  );
+  // Preview lands on the default highlight (row 0) as soon as the dialog opens.
+  await waitForFrame(() => highlights.length > 0);
+  expect(highlights[0]).toBe("apple");
+  // Arrowing down previews the next row — commit (onSelect) hasn't run.
+  await mockInput.pressKeys(["ARROW_DOWN"], KEY_DELAY_MS);
+  await waitForFrame(() => highlights[highlights.length - 1] === "apricot");
+  expect(highlights[highlights.length - 1]).toBe("apricot");
+});
+
+test("onHighlight follows a query filter (previews the new top match)", async () => {
+  const highlights: string[] = [];
+  const { mockInput, waitForFrame } = await mountDialog(
+    () => {},
+    (v) => highlights.push(v),
+  );
+  await waitForFrame(() => highlights.length > 0);
+  // Typing "ch" filters to "cherry" and resets the highlight to row 0 → preview.
+  await mockInput.typeText("ch", KEY_DELAY_MS);
+  await waitForFrame(() => highlights[highlights.length - 1] === "cherry");
+  expect(highlights[highlights.length - 1]).toBe("cherry");
 });
 
 test("arrow selection wraps past the top", async () => {

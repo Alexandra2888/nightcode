@@ -10,7 +10,7 @@ import { useCommandPopover } from "../../hooks/use-command-popover.ts";
 import { useFileMentionPopover } from "../../hooks/use-file-mention-popover.ts";
 import { activeMention, insertMention } from "../../lib/file-mentions.ts";
 import { useLayer, useLayerContext } from "../../lib/layer.tsx";
-import { modeColor, mutedColor } from "../../lib/theme.ts";
+import { useTheme } from "../../lib/theme/index.ts";
 import { Border } from "../border.tsx";
 import { CommandPopover } from "./command-popover.tsx";
 import { FileMentionPopover } from "./file-mention-popover.tsx";
@@ -50,7 +50,8 @@ type ChatTextAreaProps = {
 export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps) {
   const ref = useRef<TextareaRenderable>(null);
   const { mode, cycle } = useChatConfig();
-  const { activeDialog } = useDialog();
+  const { anyOpen } = useDialog();
+  const { theme } = useTheme();
   const { executeChatCommand } = useChatCommands();
   const popover = useCommandPopover();
   const fileMention = useFileMentionPopover();
@@ -112,7 +113,7 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
   useKeyboard((key) => {
     // A dialog is open (and owns the keyboard) — the palette can't be open here
     // and Tab must not cycle the mode behind the overlay.
-    if (activeDialog !== null) return;
+    if (anyOpen) return;
     // File-mention popover wins Enter first (contract: file-mention → command →
     // submit). It and the command palette are mutually exclusive in practice — a
     // command buffer starts with "/" and has no space; a mention needs a space
@@ -191,7 +192,7 @@ export function ChatTextArea({ placeholder, hint, onSubmit }: ChatTextAreaProps)
   // muted when a dialog (or any higher layer) covers it — so it doesn't bleed the
   // mode color through the dialog's translucent overlay.
   const barColor =
-    topLayer === "chatTextArea" ? modeColor(mode) : mutedColor;
+    topLayer === "chatTextArea" ? theme.mode[mode] : theme.border.muted;
 
   return (
     <box flexDirection="column">

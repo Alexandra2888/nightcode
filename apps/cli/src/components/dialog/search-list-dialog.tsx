@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard } from "@opentui/react";
 import { useSearchList } from "../../hooks/use-search-list.ts";
-import { mutedColor } from "../../lib/theme.ts";
+import { useTheme } from "../../lib/theme/index.ts";
 import { Dialog, useDialog } from "./dialog.tsx";
 
 /** Most rows shown before the list scrolls. */
@@ -25,6 +25,11 @@ type SearchListDialogProps<T> = {
   renderItem: (item: T, selected: boolean) => ReactNode;
   /** Called with the chosen row. The dialog then closes itself. */
   onSelect: (item: T) => void;
+  /** Called with the highlighted row as the selection moves (arrow keys, mouse
+   *  hover, or a query-filter that resets the highlight) while the dialog is open.
+   *  For live preview (e.g. a theme picker) — commit still runs only on `onSelect`.
+   *  Any list gets preview for free by passing this. */
+  onHighlight?: (item: T) => void;
   /** Search-box placeholder. */
   placeholder?: string;
   /** Shown when the (filtered) list is empty. */
@@ -54,11 +59,12 @@ export function SearchListDialog<T>({
   itemKey,
   renderItem,
   onSelect,
+  onHighlight,
   placeholder,
   emptyText,
 }: SearchListDialogProps<T>) {
-  const { activeDialog, closeDialog } = useDialog();
-  const open = activeDialog === id;
+  const { open, closeDialog } = useDialog(id);
+  const { theme } = useTheme();
 
   const { filtered, selectedIndex, onQueryChange, moveSelection, select, resolveSelected, reset } =
     useSearchList(items, toText);
@@ -77,6 +83,17 @@ export function SearchListDialog<T>({
     const item = filtered[selectedIndex];
     if (!item) return;
     scrollRef.current?.scrollChildIntoView(rowId(id, itemKey(item)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, filtered, selectedIndex]);
+
+  // Fire preview as the highlight moves (arrow keys, mouse hover, or a query
+  // filter that resets to row 0) while open. Rendering-driven, same shape as the
+  // scroll sync above; `onHighlight` is deliberately out of the deps so a caller's
+  // inline lambda doesn't re-fire it on unrelated re-renders (useeffect-audit: keep).
+  useEffect(() => {
+    if (!open) return;
+    const item = filtered[selectedIndex];
+    if (item !== undefined) onHighlight?.(item);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, filtered, selectedIndex]);
 
@@ -120,7 +137,7 @@ export function SearchListDialog<T>({
         key={itemKey(item)}
         id={rowId(id, itemKey(item))}
         paddingX={1}
-        backgroundColor={selected ? mutedColor : undefined}
+        backgroundColor={selected ? theme.popover.selectedBackground : undefined}
         onMouseOver={() => select(index)}
         onMouseDown={(e) => {
           e.stopPropagation();

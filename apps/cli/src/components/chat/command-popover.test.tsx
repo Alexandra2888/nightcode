@@ -1,6 +1,7 @@
 import { test, expect, afterEach } from "bun:test";
 import { testRender } from "@opentui/react/test-utils";
 import type { ChatCommand } from "../../lib/chat-commands.ts";
+import { ThemeProvider } from "../../lib/theme/index.ts";
 import { CommandPopover } from "./command-popover.tsx";
 
 // The palette's presentation: it lists command names + descriptions and its
@@ -20,14 +21,16 @@ const noop = () => {};
 // relative wrapper with an input below it — so the popover floats on-screen.
 async function frameFor(node: React.ReactNode) {
   testSetup = await testRender(
-    <box height={24} justifyContent="flex-end">
-      <box position="relative" overflow="visible">
-        {node}
-        <box height={4}>
-          <text>[ input ]</text>
+    <ThemeProvider>
+      <box height={24} justifyContent="flex-end">
+        <box position="relative" overflow="visible">
+          {node}
+          <box height={4}>
+            <text>[ input ]</text>
+          </box>
         </box>
       </box>
-    </box>,
+    </ThemeProvider>,
     { width: 80, height: 24 },
   );
   await testSetup.renderOnce();

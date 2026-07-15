@@ -1,5 +1,5 @@
 import { TextAttributes } from "@opentui/core";
-import { asciiPrimary, asciiAccent } from "../lib/theme.ts";
+import { useTheme } from "../lib/theme/index.ts";
 
 /**
  * The nightcode banner shown at the top of the home screen. Split into two
@@ -7,11 +7,12 @@ import { asciiPrimary, asciiAccent } from "../lib/theme.ts";
  * echoing OpenCode's two-tone wordmark.
  */
 export function AsciiArt() {
+  const { theme } = useTheme();
   return (
     <box alignItems="center">
       <box flexDirection="row" gap={1}>
-        <ascii-font font="tiny" text="night" color={asciiPrimary} />
-        <ascii-font font="tiny" text="code" color={asciiAccent} />
+        <ascii-font font="tiny" text="night" color={theme.ascii.primary} />
+        <ascii-font font="tiny" text="code" color={theme.ascii.accent} />
       </box>
       <text attributes={TextAttributes.DIM}>What will you build?</text>
     </box>

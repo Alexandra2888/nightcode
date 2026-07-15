@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core";
-import { asciiPrimary, bgColor, mutedColor } from "../../lib/theme.ts";
+import { useTheme } from "../../lib/theme/index.ts";
 
 /** Most rows shown before the list scrolls. */
 const MAX_VISIBLE_ROWS = 10;
@@ -31,6 +31,7 @@ export function FileMentionPopover({
   onHover,
   onPick,
 }: FileMentionPopoverProps) {
+  const { theme } = useTheme();
   const scrollRef = useRef<ScrollBoxRenderable>(null);
 
   // Keep the highlighted row visible as the selection moves with the keyboard.
@@ -53,12 +54,12 @@ export function FileMentionPopover({
         key={file}
         id={rowId(file)}
         width={rowWidth}
-        backgroundColor={selected ? mutedColor : undefined}
+        backgroundColor={selected ? theme.popover.selectedBackground : undefined}
         onMouseOver={() => onHover(index)}
         onMouseDown={() => onPick(file)}
       >
         <text
-          fg={selected ? asciiPrimary : undefined}
+          fg={selected ? theme.popover.selectedForeground : undefined}
           attributes={selected ? TextAttributes.BOLD : TextAttributes.DIM}
         >
           {file}
@@ -75,8 +76,8 @@ export function FileMentionPopover({
       zIndex={10}
       border
       borderStyle="rounded"
-      borderColor={mutedColor}
-      backgroundColor={bgColor}
+      borderColor={theme.popover.border}
+      backgroundColor={theme.popover.background}
       paddingX={1}
     >
       {/* Only pay for a scrollbox once the list overflows — a tightly sized

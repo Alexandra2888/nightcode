@@ -3,12 +3,13 @@ import { useNavigate } from "react-router";
 import { format } from "date-fns";
 import { TextAttributes } from "@opentui/core";
 import { client } from "../../lib/client.ts";
-import { asciiPrimary } from "../../lib/theme.ts";
+import { useTheme } from "../../lib/theme/index.ts";
 import { useDialog } from "./dialog.tsx";
+import { DIALOG_IDS } from "./dialog-ids.ts";
 import { SearchListDialog } from "./search-list-dialog.tsx";
 
-/** The dialog id — must match the `/sessions` command's `openDialog(...)`. */
-const DIALOG_ID = "sessions";
+/** The dialog id — shared with the `/sessions` command via `DIALOG_IDS`. */
+const DIALOG_ID = DIALOG_IDS.sessions;
 
 type SessionListItem = {
   id: string;
@@ -27,9 +28,9 @@ type SessionListItem = {
  * + `cancelled` guard so a fast close/reopen can't land a stale response.
  */
 export function SessionsDialog() {
-  const { activeDialog } = useDialog();
+  const { open } = useDialog(DIALOG_ID);
   const navigate = useNavigate();
-  const open = activeDialog === DIALOG_ID;
+  const { theme } = useTheme();
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
 
   useEffect(() => {
@@ -65,7 +66,7 @@ export function SessionsDialog() {
       onSelect={(s) => navigate(`/sessions/${s.id}`)}
       renderItem={(s, selected) => (
         <box flexDirection="row" justifyContent="space-between" gap={2}>
-          <text fg={selected ? asciiPrimary : undefined} attributes={selected ? TextAttributes.BOLD : undefined}>
+          <text fg={selected ? theme.text.primary : undefined} attributes={selected ? TextAttributes.BOLD : undefined}>
             {s.title ?? "Untitled"}
           </text>
           {/* Same-titled sessions are common; the timestamp disambiguates them. */}

@@ -4,7 +4,7 @@ import type { ToolUIPart } from "ai";
 import { toolSchemas, type ToolName } from "nightcode-ai";
 import { DEFAULT_MODE, type CodingAgentUIMessage } from "nightcode-ai/client";
 import { parseFileContextPath } from "../../lib/file-mentions.ts";
-import { errorColor, mutedColor, modeColor } from "../../lib/theme.ts";
+import { useTheme } from "../../lib/theme/index.ts";
 import { Border } from "../border.tsx";
 
 type MessagePart = CodingAgentUIMessage["parts"][number];
@@ -52,6 +52,7 @@ function RoleLabel({ kind }: { kind: MessageKind }) {
  * structural/unsupported ones (step-start, files, sources, data, custom).
  */
 function Part({ part }: { part: MessagePart }) {
+  const { theme } = useTheme();
   if (part.type === "text") {
     // A `@file` mention resolves to an inlined `<file path="…">…</file>` context
     // part (see buildUserParts). The model gets the full contents; the transcript
@@ -79,7 +80,7 @@ function Part({ part }: { part: MessagePart }) {
     const name = getToolName(part) as ToolName;
     if (part.state === "output-error") {
       return (
-        <text fg={errorColor}>
+        <text fg={theme.text.error}>
           ⚒ {name}: {part.errorText}
         </text>
       );
@@ -113,9 +114,10 @@ function isBlockPart(part: MessagePart): boolean {
  * default mode for any legacy row without metadata.
  */
 function UserMessage({ message }: { message: CodingAgentUIMessage }) {
+  const { theme } = useTheme();
   const mode = message.metadata?.mode ?? DEFAULT_MODE;
   return (
-    <Border color={modeColor(mode)}>
+    <Border color={theme.mode[mode]}>
       <box maxWidth={72} flexDirection="column">
         {message.parts.map((part, i) => (
           <Part key={i} part={part} />
@@ -132,11 +134,12 @@ function UserMessage({ message }: { message: CodingAgentUIMessage }) {
  * jumping to the screen edge.
  */
 function AssistantMessage({ message }: { message: CodingAgentUIMessage }) {
+  const { theme } = useTheme();
   return (
     <box maxWidth={72} flexDirection="column" gap={1}>
       {message.parts.map((part, i) =>
         isBlockPart(part) ? (
-          <Border key={i} color={mutedColor}>
+          <Border key={i} color={theme.border.muted}>
             <Part part={part} />
           </Border>
         ) : (
@@ -154,8 +157,14 @@ function AssistantMessage({ message }: { message: CodingAgentUIMessage }) {
 export function ChatMessage({ message }: { message: CodingAgentUIMessage }) {
   if (message.role === "user") return <UserMessage message={message} />;
   if (message.role === "assistant") return <AssistantMessage message={message} />;
+  return <SystemMessage message={message} />;
+}
+
+/** The rare system turn: a muted bar, same shell as a user turn. */
+function SystemMessage({ message }: { message: CodingAgentUIMessage }) {
+  const { theme } = useTheme();
   return (
-    <Border color={mutedColor}>
+    <Border color={theme.border.muted}>
       <box maxWidth={72} flexDirection="column">
         {message.parts.map((part, i) => (
           <Part key={i} part={part} />
@@ -171,11 +180,12 @@ export function ChatMessage({ message }: { message: CodingAgentUIMessage }) {
  * tied to the turn that failed — rather than as a detached banner.
  */
 export function ErrorMessage({ text }: { text: string }) {
+  const { theme } = useTheme();
   return (
     <box flexDirection="column">
       <RoleLabel kind="error" />
       <box maxWidth={72}>
-        <text fg={errorColor}>{text}</text>
+        <text fg={theme.text.error}>{text}</text>
       </box>
     </box>
   );

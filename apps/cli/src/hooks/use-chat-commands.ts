@@ -29,8 +29,8 @@ export function useChatCommands() {
       const ctx: ChatCommandContext = {
         // Destroy the renderer to quit — never process.exit() (see AGENTS.md).
         exit: () => renderer.destroy(),
-        navigate: (to) => navigate(to),
-        openDialog: (id) => openDialog(id),
+        navigate,
+        openDialog,
       };
       command.execute(ctx);
       return true;

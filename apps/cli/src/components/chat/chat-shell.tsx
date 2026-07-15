@@ -4,7 +4,7 @@ import type {
   CodingAgentUIMessage,
   PendingApproval,
 } from "nightcode-ai/client";
-import { warnColor } from "../../lib/theme.ts";
+import { useTheme } from "../../lib/theme/index.ts";
 import { Border } from "../border.tsx";
 import { ChatMessage, ErrorMessage } from "./chat-message.tsx";
 import { ChatTextArea } from "./chat-text-area.tsx";
@@ -42,6 +42,7 @@ export function ChatShell({
   pendingApproval,
   onSend,
 }: ChatShellProps) {
+  const { theme } = useTheme();
   const busy = status === "submitted" || status === "streaming";
 
   return (
@@ -63,12 +64,12 @@ export function ChatShell({
 
       {pendingApproval ? (
         <box flexShrink={0}>
-          <Border color={warnColor}>
+          <Border color={theme.text.warn}>
             <box flexDirection="column" paddingY={1} paddingRight={1}>
-              <text fg={warnColor} attributes={TextAttributes.BOLD}>
+              <text fg={theme.text.warn} attributes={TextAttributes.BOLD}>
                 approval required
               </text>
-              <text fg={warnColor}>{`⚒  ${pendingApproval.toolName}`}</text>
+              <text fg={theme.text.warn}>{`⚒  ${pendingApproval.toolName}`}</text>
               {pendingApproval.detail ? (
                 <text attributes={TextAttributes.DIM}>
                   {oneLine(pendingApproval.detail)}
