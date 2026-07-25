@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "bin": {
-    "nightcode": "src/index.tsx"
+    "nightcode": "./dist/index.js"
   },
   "scripts": {
     "dev": "bun --watch --env-file=../../.env run src/index.tsx",
     "start": "bun --env-file=../../.env run src/index.tsx",
-    "build": "bun build src/index.tsx --outdir dist --target bun --external '@opentui/*'"
+    "build": "bun build src/index.tsx --outfile dist/index.bundle.js --target bun --external '@opentui/*' --external react --external 'react/*' && bun run scripts/make-bin.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.16",
@@ -26,7 +26,6 @@
   },
   "devDependencies": {
     "@types/react": ">=19.0.0",
-    "nightcode-database": "workspace:*",
     "server": "workspace:*"
   }
 }

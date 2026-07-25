@@ -255,8 +255,32 @@ Bun does not type-check — always run `bun run typecheck` separately.
   is fine for short-lived tasks like `build`.
 - **Default port is 3001** (not 3000) to avoid colliding with a Next.js dev
   server. Override with `PORT`.
-- **CLI build** marks `@opentui/*` external (`--external '@opentui/*'`); OpenTUI
-  loads platform-specific native binaries at runtime, so they must not be
-  bundled.
+- **CLI build** marks `@opentui/*` **and `react`** external (`--external
+  '@opentui/*' --external react --external 'react/*'`). OpenTUI loads
+  platform-specific native binaries at runtime, so they must not be bundled — and
+  because `@opentui/react` (external) pulls `react`/`react-reconciler` from
+  `node_modules`, `react` MUST be external too. Bundle a second copy of `react`
+  and the app's hooks run against a different React instance than the reconciler,
+  crashing at first render with `TypeError: null is not an object (evaluating
+  'resolveDispatcher().useState')`. Dev/`start` (`bun run src/index.tsx`, no
+  bundling) never hits this — only the built binary does. `bun link` resolves both
+  externals from the repo `node_modules` since `dist/` lives inside the repo.
+- **Bun build banners are not first-line-executable shebangs.** `bun build
+  --banner '#!/usr/bin/env bun'` emits Bun's runtime preamble *before* the
+  banner (invalid first line), and a shebang in the entry source (`src/index.tsx`)
+  ends up as a *second* invalid shebang inside the bundle — either way the linked
+  binary dies with a syntax error. For the standalone/`bun link`able `nightcode`
+  CLI, the `build` script bundles the code to `dist/index.bundle.js` and then
+  generates a tiny executable `dist/index.js` wrapper (`#!/usr/bin/env bun` +
+  `import "./index.bundle.js"`, `chmod 0755`) via `scripts/make-bin.ts`. `bin`
+  points at the wrapper (`./dist/index.js`), NOT the bundle or the source.
+- **Standalone-CLI user config lives in `~/.config/nightcode/`** (honoring
+  `XDG_CONFIG_HOME`) — the same dir as the signed-in session (`auth.json`, see
+  `auth/auth-config.ts`). `load-root-env.ts` fills missing env from the repo root
+  `.env` (walk-up) first, then `~/.config/nightcode/.env` as a fallback, so a
+  `nightcode` binary launched OUTSIDE the repo still gets the Clerk `/login`
+  config (`CLERK_FRONTEND_API`, `CLERK_OAUTH_CLIENT_ID`). Populate that global
+  `.env` to sign in from any directory; real shell vars and the repo `.env` still
+  win over it.
 - **Hono routes are chained** so `export type AppType` stays inferable for the
   RPC client. Keep them chained (see "Server ↔ CLI communication").

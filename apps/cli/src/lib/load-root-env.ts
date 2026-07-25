@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
 // The CLI's Clerk config (CLERK_FRONTEND_API, CLERK_OAUTH_CLIENT_ID) lives in the
@@ -7,10 +8,14 @@ import { dirname, join } from "node:path";
 // per-app `bun run dev`) Bun looks for a non-existent `apps/cli/.env` — so /login
 // starts with those vars unset and errors with "Missing Clerk configuration".
 //
-// This is a belt-and-suspenders fallback: locate the nearest .env by walking up
-// from this file and fill any key that isn't already set. Real, non-empty env
-// vars always win — we only fill missing/empty ones — so it never overrides an
-// explicit `--env-file` or a genuine shell value.
+// This fills any key that isn't already set from two fallback sources, in order:
+//   1. the nearest .env walking up from this file (the repo root .env in dev, and
+//      still reachable by a `bun link`ed binary whose `dist/` lives in the repo);
+//   2. a GLOBAL user .env at `~/.config/nightcode/.env` — the fallback for a
+//      standalone binary launched OUTSIDE the repo, where the walk-up finds none.
+// Real, non-empty env vars always win (we only fill missing/empty), and the repo
+// .env wins over the global one, so an explicit `--env-file` or shell value is
+// never overridden.
 
 function findRootEnv(startDir: string): string | null {
   let dir = startDir;
@@ -23,6 +28,17 @@ function findRootEnv(startDir: string): string | null {
     if (parent === dir) return null; // filesystem root, no .env found
     dir = parent;
   }
+}
+
+// The global user-config .env. Mirrors where the signed-in session is stored
+// (`~/.config/nightcode/`, honoring XDG_CONFIG_HOME — see auth/auth-config.ts),
+// so all standalone-CLI user config lives in one place. Populate it with the
+// Clerk keys the OAuth /login flow needs (CLERK_FRONTEND_API,
+// CLERK_OAUTH_CLIENT_ID) to sign in from any directory.
+function globalEnvPath(): string {
+  const base =
+    process.env.XDG_CONFIG_HOME?.trim() || join(homedir(), ".config");
+  return join(base, "nightcode", ".env");
 }
 
 function parseEnv(content: string): Record<string, string> {
@@ -46,14 +62,9 @@ function parseEnv(content: string): Record<string, string> {
   return out;
 }
 
-let loaded = false;
-
-/** Fill missing/empty env vars from the monorepo root .env. Idempotent. */
-export function loadRootEnv(): void {
-  if (loaded) return;
-  loaded = true;
-  const envPath = findRootEnv(import.meta.dir);
-  if (!envPath) return;
+/** Fill any missing/empty env var from the given .env file. Real, non-empty
+ *  values are never overridden, so an earlier source (or the shell) wins. */
+function fillMissingFrom(envPath: string): void {
   let content: string;
   try {
     content = readFileSync(envPath, "utf8");
@@ -66,6 +77,19 @@ export function loadRootEnv(): void {
       process.env[key] = value;
     }
   }
+}
+
+let loaded = false;
+
+/** Fill missing/empty env vars from the repo root .env, then the global user
+ *  .env (`~/.config/nightcode/.env`) as a standalone-run fallback. Idempotent. */
+export function loadRootEnv(): void {
+  if (loaded) return;
+  loaded = true;
+  const repoEnv = findRootEnv(import.meta.dir);
+  if (repoEnv) fillMissingFrom(repoEnv); // repo wins over global (filled first)
+  const globalEnv = globalEnvPath();
+  if (existsSync(globalEnv)) fillMissingFrom(globalEnv);
 }
 
 // Self-execute on import so a side-effect `import "./lib/load-root-env.ts"` placed
