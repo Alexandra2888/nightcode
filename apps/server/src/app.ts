@@ -18,6 +18,11 @@ import { sessionsRoute } from "./routes/sessions/route.ts";
 // that context flows through to the chained routes and the RPC `AppType`.
 const app = new Hono<{ Variables: AuthVariables }>()
   .use(logger())
+  // Registered BEFORE `authMiddleware` so it answers without a token: Hono runs
+  // handlers in registration order, so this returns before the middleware is
+  // reached. The deploy platform's health probe needs a 200, and `.use()` at the
+  // app root would otherwise 401 every path — including `/`, which still does.
+  .get("/health", (c) => c.json({ status: "ok", uptime: process.uptime() }))
   .use(authMiddleware)
   .route("/chat", chatRoute)
   .route("/sessions", sessionsRoute);

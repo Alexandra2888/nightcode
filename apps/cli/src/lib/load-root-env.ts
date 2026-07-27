@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { buildConfig } from "./build-config.ts";
 
 // The CLI's Clerk config (CLERK_FRONTEND_API, CLERK_OAUTH_CLIENT_ID) lives in the
 // monorepo ROOT .env. How the CLI is launched decides which .env Bun auto-loads:
@@ -8,26 +9,38 @@ import { dirname, join } from "node:path";
 // per-app `bun run dev`) Bun looks for a non-existent `apps/cli/.env` — so /login
 // starts with those vars unset and errors with "Missing Clerk configuration".
 //
-// This fills any key that isn't already set from two fallback sources, in order:
+// This fills any key that isn't already set from three fallback sources, in order:
 //   1. the nearest .env walking up from this file (the repo root .env in dev, and
 //      still reachable by a `bun link`ed binary whose `dist/` lives in the repo);
 //   2. a GLOBAL user .env at `~/.config/nightcode/.env` — the fallback for a
-//      standalone binary launched OUTSIDE the repo, where the walk-up finds none.
-// Real, non-empty env vars always win (we only fill missing/empty), and the repo
-// .env wins over the global one, so an explicit `--env-file` or shell value is
-// never overridden.
+//      standalone binary launched OUTSIDE the repo, where the walk-up finds none;
+//   3. the config baked into the bundle at build time (see build-config.ts) —
+//      what makes a `curl … | sh` install work with no user config at all.
+// Real, non-empty env vars always win (we only fill missing/empty), and earlier
+// sources win over later ones, so an explicit `--env-file` or shell value is
+// never overridden and a user's own .env still beats the baked-in defaults.
+// This module is the ONE place that precedence is expressed: consumers just read
+// `process.env.X` (see client.ts's `baseUrl` and auth/env.ts).
 
 function findRootEnv(startDir: string): string | null {
   let dir = startDir;
   // Walk up: apps/cli/src/lib → … → repo root (the first .env encountered, since
   // apps/cli and apps have none).
-  while (true) {
+  //
+  // Stop BEFORE the home directory. An installed binary lives under
+  // `~/.local/lib/nightcode`, so an unbounded walk would reach `~/.env` (or a
+  // `.env` in any intermediate dir) and let an unrelated file silently override
+  // the baked-in config. A repo cloned anywhere under `~` still finds its own
+  // .env first, since that sits below the stopping point.
+  const home = homedir();
+  while (dir !== home) {
     const candidate = join(dir, ".env");
     if (existsSync(candidate)) return candidate;
     const parent = dirname(dir);
     if (parent === dir) return null; // filesystem root, no .env found
     dir = parent;
   }
+  return null;
 }
 
 // The global user-config .env. Mirrors where the signed-in session is stored
@@ -62,16 +75,11 @@ function parseEnv(content: string): Record<string, string> {
   return out;
 }
 
-/** Fill any missing/empty env var from the given .env file. Real, non-empty
- *  values are never overridden, so an earlier source (or the shell) wins. */
-function fillMissingFrom(envPath: string): void {
-  let content: string;
-  try {
-    content = readFileSync(envPath, "utf8");
-  } catch {
-    return;
-  }
-  for (const [key, value] of Object.entries(parseEnv(content))) {
+/** Fill any missing/empty env var from the given record. Real, non-empty values
+ *  are never overridden, so an earlier source (or the shell) wins. */
+function fillMissing(values: Record<string, string | undefined>): void {
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined || value === "") continue;
     const current = process.env[key];
     if (current === undefined || current === "") {
       process.env[key] = value;
@@ -79,17 +87,31 @@ function fillMissingFrom(envPath: string): void {
   }
 }
 
+/** `fillMissing` sourced from a .env file. A missing/unreadable file is a no-op. */
+function fillMissingFrom(envPath: string): void {
+  let content: string;
+  try {
+    content = readFileSync(envPath, "utf8");
+  } catch {
+    return;
+  }
+  fillMissing(parseEnv(content));
+}
+
 let loaded = false;
 
 /** Fill missing/empty env vars from the repo root .env, then the global user
- *  .env (`~/.config/nightcode/.env`) as a standalone-run fallback. Idempotent. */
+ *  .env (`~/.config/nightcode/.env`), then the build-time baked config, as
+ *  progressively weaker fallbacks. Idempotent. */
 export function loadRootEnv(): void {
   if (loaded) return;
   loaded = true;
+  // Filled strongest-first: each source only fills what's still unset.
   const repoEnv = findRootEnv(import.meta.dir);
-  if (repoEnv) fillMissingFrom(repoEnv); // repo wins over global (filled first)
+  if (repoEnv) fillMissingFrom(repoEnv);
   const globalEnv = globalEnvPath();
   if (existsSync(globalEnv)) fillMissingFrom(globalEnv);
+  fillMissing(buildConfig);
 }
 
 // Self-execute on import so a side-effect `import "./lib/load-root-env.ts"` placed

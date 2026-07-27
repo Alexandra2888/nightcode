@@ -9,7 +9,8 @@
   "scripts": {
     "dev": "bun --watch --env-file=../../.env run src/index.tsx",
     "start": "bun --env-file=../../.env run src/index.tsx",
-    "build": "bun build src/index.tsx --outfile dist/index.bundle.js --target bun --external '@opentui/*' --external react --external 'react/*' && bun run scripts/make-bin.ts"
+    "build": "bun --env-file=../../.env run scripts/build.ts",
+    "package": "bash ../../scripts/package-cli-release.sh"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.16",

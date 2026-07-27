@@ -225,6 +225,9 @@ package is discovered automatically once its folder exists.
 | `bun run start:server`| Run the server once                              |
 | `bun run start:cli`   | Run the CLI once                                 |
 | `bun run build`       | Build every workspace                            |
+| `bun run build:cli`   | Build the standalone CLI (bakes in config)       |
+| `bun run package:cli` | Package `dist/` into `nightcode-cli.tgz`         |
+| `bun run start`       | Production server start (no `--env-file`)        |
 | `bun test`            | Run all tests                                    |
 | `bun run typecheck`   | Type-check all workspaces (`tsc --build`)        |
 
@@ -270,17 +273,80 @@ Bun does not type-check — always run `bun run typecheck` separately.
   banner (invalid first line), and a shebang in the entry source (`src/index.tsx`)
   ends up as a *second* invalid shebang inside the bundle — either way the linked
   binary dies with a syntax error. For the standalone/`bun link`able `nightcode`
-  CLI, the `build` script bundles the code to `dist/index.bundle.js` and then
-  generates a tiny executable `dist/index.js` wrapper (`#!/usr/bin/env bun` +
-  `import "./index.bundle.js"`, `chmod 0755`) via `scripts/make-bin.ts`. `bin`
-  points at the wrapper (`./dist/index.js`), NOT the bundle or the source.
+  CLI, `apps/cli/scripts/build.ts` bundles the code to `dist/index.bundle.js` and
+  then generates a tiny executable `dist/index.js` wrapper (`#!/usr/bin/env bun` +
+  `import "./index.bundle.js"`, `chmod 0755`). `bin` points at the wrapper
+  (`./dist/index.js`), NOT the bundle or the source.
 - **Standalone-CLI user config lives in `~/.config/nightcode/`** (honoring
   `XDG_CONFIG_HOME`) — the same dir as the signed-in session (`auth.json`, see
   `auth/auth-config.ts`). `load-root-env.ts` fills missing env from the repo root
-  `.env` (walk-up) first, then `~/.config/nightcode/.env` as a fallback, so a
-  `nightcode` binary launched OUTSIDE the repo still gets the Clerk `/login`
-  config (`CLERK_FRONTEND_API`, `CLERK_OAUTH_CLIENT_ID`). Populate that global
-  `.env` to sign in from any directory; real shell vars and the repo `.env` still
-  win over it.
+  `.env` (walk-up) first, then `~/.config/nightcode/.env`, then the build-time
+  baked config (below), so a `nightcode` binary launched OUTSIDE the repo still
+  gets the Clerk `/login` config (`CLERK_FRONTEND_API`, `CLERK_OAUTH_CLIENT_ID`).
+  Real shell vars and the repo `.env` still win over both fallbacks. The walk-up
+  **stops before the home directory** — an installed binary lives under
+  `~/.local/lib/nightcode`, and an unbounded walk would let a stray `~/.env`
+  silently override the baked config.
 - **Hono routes are chained** so `export type AppType` stays inferable for the
   RPC client. Keep them chained (see "Server ↔ CLI communication").
+
+## Deployment and distribution
+
+The server is hosted (Railway); the CLI is distributed as a tarball attached to a
+GitHub Release and installed with `curl … | sh`. See `README.md` for the
+click-through steps — this section is the *why*.
+
+- **`prisma generate` runs from `packages/database`'s `postinstall`, not by hand.**
+  `packages/database/generated/` is gitignored and both entry points
+  (`src/index.ts`, `src/client.ts`) import from it, so a clean clone +
+  `bun install` yields a package that can't resolve its own imports — and
+  `typecheck` fails too, since `tsconfig.json` includes `generated/**/*`. A deploy
+  host only runs `bun install`, so the generate step has to hang off that. Don't
+  move it to a root script or a platform Build Command.
+- **That `postinstall` only fires because `nightcode-database` is listed in the
+  root `trustedDependencies`.** Bun blocks lifecycle scripts by default, workspace
+  packages included — it does so silently, so the failure mode is a successful-
+  looking `bun install` followed by unresolvable imports. Both halves are
+  required; changing either one alone is a no-op. To confirm after touching
+  either: `rm -rf packages/database/generated && bun install && ls
+  packages/database/generated`.
+- **Use `bun run start` for production, not `start:server`.** `start:server` hard-
+  codes `--env-file=.env`, a gitignored file that won't exist on the host. Real
+  env vars are injected by the platform.
+- **`/health` is registered BEFORE `authMiddleware`** in `apps/server/src/app.ts`.
+  The middleware is a root `.use()`, so it 401s every path including `/` — a
+  platform health probe would fail. Hono runs handlers in registration order, so
+  a route declared ahead of the middleware answers without a token. Keep it first
+  if you reorder the chain. `/` returning 401 is correct and expected.
+- **Public config is baked into the CLI bundle at build time.** An installed user
+  has no repo `.env`, so `SERVER_URL`, `CLERK_FRONTEND_API`, and
+  `CLERK_OAUTH_CLIENT_ID` are substituted into the bundle by
+  `apps/cli/scripts/build.ts` (Bun `--define` → `NIGHTCODE_BUILD_<KEY>`), read
+  back by `src/lib/build-config.ts`, and applied as the weakest layer of
+  `load-root-env.ts`. Consequences:
+  - **PUBLIC VALUES ONLY.** The bundle is a public release artifact.
+    `CLERK_SECRET_KEY` and the model provider API keys are server-side and must
+    never be added to the `BAKED` list. Grep the bundle before every release.
+  - **Literal member expressions only** in `build-config.ts` — `--define` is a
+    textual substitution, so a loop or `process.env[key]` would silently ship
+    nothing.
+  - Adding a baked value means editing exactly two places: the `BAKED` array in
+    `scripts/build.ts` and the record in `build-config.ts`. Consumers keep reading
+    `process.env.X` and need no changes.
+- **The release tarball ships no `node_modules`.** It carries the bundle, the
+  wrapper, and a generated `dist/package.json` pinning the resolved versions of
+  the externals; `install.sh` runs `bun install` on the user's machine. That's
+  what makes one ~190 KB asset work on every platform: the
+  `@opentui/core-<platform>-<arch>` natives are `optionalDependencies` of
+  `@opentui/core`, so Bun picks the right one. Vendoring them instead would mean
+  ~25 MB and one release asset per OS. Versions are read from the installed
+  `node_modules`, not copied from `apps/cli/package.json`, which says `"latest"`.
+- **Bun is a hard runtime prerequisite for installed users** — the wrapper shebang
+  is `#!/usr/bin/env bun`, the bundle is `--target bun`, and `@opentui/core`
+  resolves its `bun` export condition and `dlopen`s the native via `bun:ffi`. It
+  cannot run under Node, which is why `install.sh` checks for `bun` up front.
+- **`install.sh` downloads by exact filename** from GitHub's stable
+  `/releases/latest/download/` redirect (no API call, no token). If you rename the
+  asset, rename it in `scripts/package-cli-release.sh` too, or installs break.
+- **Railway watch paths** are scoped to `apps/server/**`, `packages/**`,
+  `package.json`, `bun.lock`, so CLI-only commits don't trigger a server redeploy.

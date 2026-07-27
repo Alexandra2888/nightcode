@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "bun run apps/server/src/index.ts",
     "dev:server": "bun --hot --env-file=.env run apps/server/src/index.ts",
     "dev:cli": "bun --watch --env-file=.env run apps/cli/src/index.tsx",
     "start:server": "bun --env-file=.env run apps/server/src/index.ts",
@@ -16,11 +17,16 @@
     "db:push": "cd packages/database && bunx --bun prisma db push",
     "db:studio": "cd packages/database && bunx --bun prisma studio",
     "build": "bun --filter '*' build",
+    "build:cli": "cd apps/cli && bun run build",
+    "package:cli": "cd apps/cli && bun run package",
     "test": "bun test",
     "typecheck": "tsc --build"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "latest"
-  }
+  },
+  "trustedDependencies": [
+    "nightcode-database"
+  ]
 }

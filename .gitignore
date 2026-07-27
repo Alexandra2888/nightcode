@@ -12,3 +12,6 @@ dist/
 
 # Prisma Client is generated into the database package; regenerate with `prisma generate`.
 /packages/database/generated/
+
+# CLI release tarball — built by `bun run package:cli`, uploaded to a GitHub Release.
+/nightcode-cli.tgz

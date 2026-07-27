@@ -8,6 +8,7 @@
     "./client": "./src/client.ts"
   },
   "scripts": {
+    "postinstall": "bun run generate",
     "generate": "bunx --bun prisma generate",
     "push": "bunx --bun prisma db push",
     "studio": "bunx --bun prisma studio"
