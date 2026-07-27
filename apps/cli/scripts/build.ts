@@ -14,11 +14,11 @@
 // syntax error, so the real shebang lives in the wrapper and re-executes the
 // bundle.
 
+import { existsSync } from "node:fs";
 import { chmod, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const cliDir = join(import.meta.dir, "..");
-const repoRoot = join(cliDir, "..", "..");
 const distDir = join(cliDir, "dist");
 
 /**
@@ -88,10 +88,32 @@ await chmod(wrapperPath, 0o755);
 // Versions are read from what's actually installed rather than copied from
 // apps/cli/package.json, which declares `@opentui/*` as "latest" — pinning the
 // resolved version here is what makes a release reproducible.
+//
+// Resolve the package the way the runtime would, then walk up to its manifest.
+// Do NOT reach into `<repoRoot>/node_modules/<pkg>` directly: `bunfig.toml` sets
+// `linker = "isolated"`, so on Bun >= 1.3 the real files live under
+// `node_modules/.bun/…` with per-workspace symlinks and that path doesn't exist.
+// (Bun 1.2.x ignores the setting and hoists, which is why this only fails on a
+// newer Bun — e.g. a deploy host.) `Bun.resolveSync` is layout-agnostic; the
+// walk-up is needed because packages like `@opentui/core` don't expose
+// `./package.json` in their exports map, so resolving it directly would throw.
 async function resolvedVersion(pkg: string): Promise<string> {
-  const manifest = join(repoRoot, "node_modules", pkg, "package.json");
-  const { version } = (await Bun.file(manifest).json()) as { version: string };
-  return version;
+  let dir = dirname(Bun.resolveSync(pkg, cliDir));
+  while (true) {
+    const candidate = join(dir, "package.json");
+    if (existsSync(candidate)) {
+      const manifest = (await Bun.file(candidate).json()) as {
+        name?: string;
+        version?: string;
+      };
+      // Guard against a nested manifest (e.g. a `dist/package.json`) that isn't
+      // the package root.
+      if (manifest.name === pkg && manifest.version) return manifest.version;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) throw new Error(`Could not resolve a version for "${pkg}".`);
+    dir = parent;
+  }
 }
 
 const { version } = (await Bun.file(join(cliDir, "package.json")).json()) as {
