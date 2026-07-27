@@ -99,22 +99,29 @@ middleware working, not an outage.
 
 Any host that runs Bun works. On Railway:
 
-1. **New → GitHub Repository →** this repo. Railway detects both apps; **delete
-   the `cli` service** — only the server gets deployed.
-2. Server service → **Settings**:
-   - **Root Directory**: `/` — not `apps/server`. The server depends on
-     `nightcode-ai` and `nightcode-database` as `workspace:*`, so the whole
-     workspace has to install.
-   - **Start Command**: `bun run start`
-   - **Healthcheck Path**: `/health`
-   - **Watch Paths**: `apps/server/**`, `packages/**`, `package.json`, `bun.lock`
-     — so CLI-only commits don't redeploy the server.
+1. **New project → Deploy from GitHub repo →** this repo → **Deploy Repo**. That
+   creates a single service from the repo root, which is what you want: leave
+   **Root Directory** at `/`, not `apps/server`. The server depends on
+   `nightcode-ai` and `nightcode-database` as `workspace:*`, so the whole
+   workspace has to install.
+2. The first deploy **fails**, and should — there are no variables yet, and
+   `middleware/auth.ts` reads its Clerk keys at import time. Configure, then
+   redeploy.
 3. **Variables → Raw Editor**: paste the server-side keys from `.env.example`
    (`DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
    `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`), plus `NODE_ENV=production`.
-4. Deploy. In the logs, `bun install` fires `packages/database`'s `postinstall` →
-   `prisma generate`, then the server boots.
-5. **Settings → Networking → Generate Domain.**
+4. **Settings**:
+   - **Build → Custom Build Command**: `bun run db:generate`. Do *not* leave this
+     auto-detected — Railway would run the root `build` script, which also bundles
+     the CLI, so a CLI-side breakage would block server deploys. The server itself
+     needs no build step; `bun run start` runs it from TypeScript source.
+   - **Deploy → Custom Start Command**: `bun run start`
+   - **Deploy → Healthcheck Path**: `/health`
+   - **Build → Watch Paths**: `apps/server/**`, `packages/**`, `package.json`,
+     `bun.lock` — so CLI-only commits don't redeploy the server.
+5. Redeploy. In the logs, `bun install` fires `packages/database`'s `postinstall`
+   → `prisma generate`, then the server boots.
+6. **Settings → Networking → Generate Domain.**
 
 Verify:
 

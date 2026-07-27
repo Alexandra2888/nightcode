@@ -350,3 +350,20 @@ click-through steps — this section is the *why*.
   asset, rename it in `scripts/package-cli-release.sh` too, or installs break.
 - **Railway watch paths** are scoped to `apps/server/**`, `packages/**`,
   `package.json`, `bun.lock`, so CLI-only commits don't trigger a server redeploy.
+- **Declare every package you import — phantom deps only fail on the deploy host.**
+  `bunfig.toml` sets `linker = "isolated"`, which gives each workspace a strict
+  view of its own declared dependencies. But **Bun 1.2.x silently ignores that
+  setting** (the isolated linker landed in 1.3), so a local install is hoisted and
+  an undeclared import resolves fine. The deploy host runs a newer Bun, honors the
+  setting, and fails with `error: Could not resolve: "<pkg>"`. This is exactly how
+  `ai` — imported by four `apps/cli` files but declared only by `apps/server` and
+  `packages/ai` — got all the way to a failed Railway build. Adding an import from
+  a package the workspace doesn't list in its own `package.json` will not be caught
+  by `bun run typecheck`, `bun test`, or a local `bun run build`.
+- **Railway's Build Command is set to `bun run db:generate`, not `bun run build`.**
+  Railpack auto-detects the root `build` script, which bundles the CLI too — so a
+  broken CLI build blocks server deploys for no reason (the phantom-dep failure
+  above did exactly that). The server needs no build step at all: `bun run start`
+  runs it straight from TypeScript source. Generating the Prisma client is the
+  only real build-time requirement, and doing it explicitly also stops the deploy
+  from depending on the `postinstall`/`trustedDependencies` pair firing.
