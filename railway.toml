@@ -50,7 +50,13 @@ healthcheckPath = "/health"
 healthcheckTimeout = 300
 
 # Both Clerk keys are read at import time by middleware/auth.ts, so a missing or
-# empty one crash-loops the container rather than serving 500s. Retrying that
-# forever buries the log line that names the variable.
+# empty one crash-loops the container rather than serving 500s — the log line
+# names the variable.
+#
+# No `restartPolicyMaxRetries` cap on purpose. Capping it (this was set to 3)
+# makes a transient boot failure permanent: once the retries are spent Railway
+# stops trying, the container stays down, and the edge serves
+# `502 Application failed to respond` with `x-railway-fallback: true` forever —
+# indistinguishable from a routing problem. Railway's default retry count is the
+# right trade here; find the crash in the deploy logs instead.
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 3
