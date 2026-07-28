@@ -22,7 +22,20 @@ builder = "RAILPACK"
 buildCommand = "bun run db:generate"
 
 # Scoped so CLI-only commits don't trigger a server redeploy.
-watchPatterns = ["apps/server/**", "packages/**", "package.json", "bun.lock"]
+#
+# The last three are not server source, but every one of them changes how the
+# host builds or runs — and a file that can break the build while being unable to
+# TRIGGER one is a trap: you push a fix, nothing redeploys, and the dashboard
+# still shows the old failure. `railway.toml` has to list itself for that reason.
+watchPatterns = [
+  "apps/server/**",
+  "packages/**",
+  "package.json",
+  "bun.lock",
+  "railway.toml",
+  ".bun-version",
+  "bunfig.toml",
+]
 
 [deploy]
 # `bun run start`, not `start:server` — the latter hard-codes `--env-file=.env`,
