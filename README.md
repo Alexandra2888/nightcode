@@ -110,17 +110,16 @@ Any host that runs Bun works. On Railway:
 3. **Variables → Raw Editor**: paste the server-side keys from `.env.example`
    (`DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
    `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`), plus `NODE_ENV=production`.
-4. **Settings**:
-   - **Build → Custom Build Command**: `bun run db:generate`. Do *not* leave this
-     auto-detected — Railway would run the root `build` script, which also bundles
-     the CLI, so a CLI-side breakage would block server deploys. The server itself
-     needs no build step; `bun run start` runs it from TypeScript source.
-   - **Deploy → Custom Start Command**: `bun run start`
-   - **Deploy → Healthcheck Path**: `/health`
-   - **Build → Watch Paths**: `apps/server/**`, `packages/**`, `package.json`,
-     `bun.lock` — so CLI-only commits don't redeploy the server.
+4. **Settings: nothing to configure.** The build command, start command,
+   healthcheck, watch paths, and restart policy all live in `railway.toml` at the
+   repo root, and Railway's rule is that *"configuration defined in code will
+   always override values from the dashboard."* Read that file rather than the
+   Settings tab — and if a Settings value appears to be ignored, that is why.
+   Do NOT also set these by hand: a stale dashboard value is invisible but
+   overridden, which is exactly the confusion the file exists to remove.
 5. Redeploy. In the logs, `bun install` fires `packages/database`'s `postinstall`
-   → `prisma generate`, then the server boots.
+   → `prisma generate` (the explicit `buildCommand` runs it again, harmlessly),
+   then the server boots.
 6. **Settings → Networking → Generate Domain.**
 
 Verify:
@@ -132,6 +131,11 @@ curl -i https://<app>.up.railway.app/         # 401 {"error":"Unauthorized"}
 
 Both Clerk keys are read at import time, so a missing or empty one crash-loops the
 container rather than serving 500s — the log line names the variable.
+
+If the **build** fails, check the Bun version first. `.bun-version` pins `1.2.16`
+for both your machine and the host; without it Railpack installs Bun `latest`,
+and a newer Bun both honors `bunfig.toml`'s `linker = "isolated"` and re-resolves
+the lockfile under `--frozen-lockfile`. See "Pin the Bun version" in `AGENTS.md`.
 
 ## Cutting a CLI release
 

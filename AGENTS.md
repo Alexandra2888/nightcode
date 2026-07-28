@@ -340,7 +340,9 @@ click-through steps — this section is the *why*.
   `@opentui/core-<platform>-<arch>` natives are `optionalDependencies` of
   `@opentui/core`, so Bun picks the right one. Vendoring them instead would mean
   ~25 MB and one release asset per OS. Versions are read from the installed
-  `node_modules`, not copied from `apps/cli/package.json`, which says `"latest"`.
+  `node_modules` rather than copied from `apps/cli/package.json`: the manifest
+  declares a `^` range, and a release has to pin the one exact version that was
+  actually bundled against.
 - **Bun is a hard runtime prerequisite for installed users** — the wrapper shebang
   is `#!/usr/bin/env bun`, the bundle is `--target bun`, and `@opentui/core`
   resolves its `bun` export condition and `dlopen`s the native via `bun:ffi`. It
@@ -348,8 +350,30 @@ click-through steps — this section is the *why*.
 - **`install.sh` downloads by exact filename** from GitHub's stable
   `/releases/latest/download/` redirect (no API call, no token). If you rename the
   asset, rename it in `scripts/package-cli-release.sh` too, or installs break.
-- **Railway watch paths** are scoped to `apps/server/**`, `packages/**`,
+- **Railway settings live in `railway.toml`, not the dashboard.** Build command,
+  watch paths, start command, healthcheck, and restart policy are all
+  config-as-code, and Railway's precedence rule is absolute: *"configuration
+  defined in code will always override values from the dashboard."* So a value
+  typed into Settings is silently ignored — the failure mode is a setting that
+  looks right in the UI and has no effect. Change `railway.toml`; don't
+  double-configure. Watch paths stay scoped to `apps/server/**`, `packages/**`,
   `package.json`, `bun.lock`, so CLI-only commits don't trigger a server redeploy.
+- **Pin the Bun version — an unpinned host Bun is a different Bun.** Railpack
+  resolves Bun as `RAILPACK_BUN_VERSION` → `.bun-version` → `engines.bun` →
+  `mise.toml`/`.tool-versions` → **`latest`**. With nothing pinned it took
+  `latest` (1.3.x) while local dev was 1.2.16, which breaks a build two ways at
+  once: a newer Bun honors `linker = "isolated"` (next bullet), and it re-resolves
+  a 1.2-authored `bun.lock` under Railpack's `bun install --frozen-lockfile` —
+  a known Bun **workspaces** bug (oven-sh/bun#12252) whose signature is
+  `lockfile had changes, but lockfile is frozen` on the host while
+  `bun install --frozen-lockfile` passes locally. `.bun-version` (1.2.16) and
+  root `engines.bun` now pin both sides; keep them in step with the Bun that
+  authored `bun.lock`. **Corollary: no `"latest"` dependency specifiers.**
+  `"latest"` is not a semver range, so it invites exactly that re-resolution —
+  every dep is now a `^` range matching its locked version. To bump Bun: upgrade
+  locally first, `bun install` to re-author the lockfile, then move both pins.
+  Adding `packageManager` to `package.json` is NOT the way to pin — Railpack
+  reads it as a Corepack signal and installs Node.js alongside Bun.
 - **Declare every package you import — phantom deps only fail on the deploy host.**
   `bunfig.toml` sets `linker = "isolated"`, which gives each workspace a strict
   view of its own declared dependencies. But **Bun 1.2.x silently ignores that
@@ -360,7 +384,8 @@ click-through steps — this section is the *why*.
   `packages/ai` — got all the way to a failed Railway build. Adding an import from
   a package the workspace doesn't list in its own `package.json` will not be caught
   by `bun run typecheck`, `bun test`, or a local `bun run build`.
-- **Railway's Build Command is set to `bun run db:generate`, not `bun run build`.**
+- **The build command is `bun run db:generate`, not `bun run build`** (set in
+  `railway.toml`).
   Railpack auto-detects the root `build` script, which bundles the CLI too — so a
   broken CLI build blocks server deploys for no reason (the phantom-dep failure
   above did exactly that). The server needs no build step at all: `bun run start`

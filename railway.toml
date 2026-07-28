@@ -1,0 +1,43 @@
+# Railway deploy config for the `nightcode` server, checked in so the settings
+# live in git rather than in dashboard clicks. Railway's precedence rule is
+# absolute — "configuration defined in code will always override values from the
+# dashboard" — so this file is the single source of truth and a half-configured
+# dashboard can no longer change the outcome.
+#
+# Root Directory stays `/` (NOT apps/server): the server depends on
+# `nightcode-ai` and `nightcode-database` as `workspace:*`, so the whole
+# workspace has to install. See README.md for the click-through steps.
+
+[build]
+builder = "RAILPACK"
+
+# Explicitly `db:generate`, NOT the auto-detected root `build` script. Railpack
+# runs `build` from package.json when no command is given, and ours is
+# `bun --filter '*' build`, which also bundles the CLI — so a CLI-side breakage
+# would block server deploys for no reason. The server needs no build step at
+# all; `bun run start` runs it straight from TypeScript source. Generating the
+# Prisma client is the only genuine build-time requirement, and naming it here
+# also stops the deploy from depending on `packages/database`'s `postinstall`
+# firing (which itself only works because of root `trustedDependencies`).
+buildCommand = "bun run db:generate"
+
+# Scoped so CLI-only commits don't trigger a server redeploy.
+watchPatterns = ["apps/server/**", "packages/**", "package.json", "bun.lock"]
+
+[deploy]
+# `bun run start`, not `start:server` — the latter hard-codes `--env-file=.env`,
+# a gitignored file that does not exist on the host. Real env vars are injected
+# by Railway.
+startCommand = "bun run start"
+
+# `/health` is registered BEFORE `authMiddleware` in apps/server/src/app.ts, so
+# it answers without a token. Every other path (including `/`) correctly 401s,
+# which is why the probe cannot point at `/`.
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+
+# Both Clerk keys are read at import time by middleware/auth.ts, so a missing or
+# empty one crash-loops the container rather than serving 500s. Retrying that
+# forever buries the log line that names the variable.
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

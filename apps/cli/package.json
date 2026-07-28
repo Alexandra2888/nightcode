@@ -15,10 +15,10 @@
   "dependencies": {
     "@ai-sdk/react": "^4.0.16",
     "ai": "^7.0.15",
-    "@opentui/core": "latest",
-    "@opentui/react": "latest",
+    "@opentui/core": "^0.4.5",
+    "@opentui/react": "^0.4.5",
     "date-fns": "^4.4.0",
-    "hono": "latest",
+    "hono": "^4.12.32",
     "nightcode-ai": "workspace:*",
     "oauth4webapi": "^3.8.6",
     "open": "^11.0.0",

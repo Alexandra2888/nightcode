@@ -17,7 +17,7 @@
     "@clerk/backend": "^3.11.5",
     "@hono/zod-validator": "^0.8.0",
     "ai": "^7.0.15",
-    "hono": "latest",
+    "hono": "^4.12.32",
     "nightcode-ai": "workspace:*",
     "nightcode-database": "workspace:*",
     "zod": "^4.4.3"
